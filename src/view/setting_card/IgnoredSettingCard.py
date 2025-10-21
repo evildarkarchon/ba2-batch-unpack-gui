@@ -1,11 +1,21 @@
-from typing import List, Union
+from typing import cast
 
-from PySide6.QtCore import Qt, Signal, QSize
+from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import (QWidget, QLabel,
-                               QHBoxLayout, QSizePolicy)
-from qfluentwidgets import ExpandSettingCard, ConfigItem, FluentIconBase, PushButton, qconfig, LineEdit, TeachingTip, \
-    InfoBarIcon, TeachingTipTailPosition, ToolButton, ToolTipFilter
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QWidget
+from qfluentwidgets import (
+    ConfigItem,
+    ExpandSettingCard,
+    FluentIconBase,
+    InfoBarIcon,
+    LineEdit,
+    PushButton,
+    TeachingTip,
+    TeachingTipTailPosition,
+    ToolButton,
+    ToolTipFilter,
+    qconfig,
+)
 from qfluentwidgets import FluentIcon as Fi
 
 
@@ -42,16 +52,13 @@ class IgnoredSettingCard(ExpandSettingCard):
 
     ignored_changed = Signal(list)
 
-    def __init__(self, config_item: ConfigItem, icon: Union[str, QIcon, FluentIconBase], title: str,
-                 content: str = None, parent=None):
+    def __init__(self, config_item: ConfigItem, icon: str | QIcon | FluentIconBase, title: str,
+                 content: str | None = None, parent=None):
         """
         Parameters
         ----------
         config_item: ConfigItem
             configuration item operated by the card
-
-        icon:
-            card icon
 
         icon: str | QIcon | FluentIconBase
             the icon to be drawn
@@ -63,13 +70,15 @@ class IgnoredSettingCard(ExpandSettingCard):
             parent widget
         """
 
-        super().__init__(icon, title, content, parent)
+        # Cast parameters to satisfy parent class type requirements
+        # FluentIconBase is compatible but not in the parent's type signature
+        super().__init__(cast("str | QIcon | Fi", icon), title, cast("str", content), parent)
         self.config_item = config_item
         self.clear_ignored_button = ToolButton(Fi.BROOM, self)
         self.new_ignored_input = LineEdit(self)
-        self.add_ignored_button = PushButton(self.tr('Add'), self, Fi.ADD)
+        self.add_ignored_button = PushButton(self.tr("Add"), self, Fi.ADD)
 
-        self.ignored = qconfig.get(config_item).copy()  # type:List[str]
+        self.ignored = qconfig.get(config_item).copy()  # type:list[str]
         self.ignored_cards = []
 
         self.__initWidget()
@@ -88,10 +97,10 @@ class IgnoredSettingCard(ExpandSettingCard):
         for i in self.ignored:
             self.__add_ignored_item(i)
 
-        self.clear_ignored_button.setToolTip(self.tr('Clear all'))
+        self.clear_ignored_button.setToolTip(self.tr("Clear all"))
         self.clear_ignored_button.installEventFilter(ToolTipFilter(self.clear_ignored_button))
         self.clear_ignored_button.clicked.connect(self.__clear_ignored)
-        self.new_ignored_input.setPlaceholderText(self.tr('Ignored'))
+        self.new_ignored_input.setPlaceholderText(self.tr("Ignored"))
         self.add_ignored_button.clicked.connect(self.__add_ignored)
 
     def __add_ignored(self, name=None):
@@ -153,22 +162,22 @@ class IgnoredSettingCard(ExpandSettingCard):
         TeachingTip.create(
             target=self.new_ignored_input,
             icon=InfoBarIcon.ERROR,
-            title=self.tr('Check your input'),
-            content=self.tr('Please enter something'),
+            title=self.tr("Check your input"),
+            content=self.tr("Please enter something"),
             isClosable=True,
             tailPosition=TeachingTipTailPosition.BOTTOM,
             duration=2000,
-            parent=self
+            parent=self,
         )
 
     def __show_ignore_duplicate_tip(self):
         TeachingTip.create(
             target=self.new_ignored_input,
             icon=InfoBarIcon.ERROR,
-            title=self.tr('Duplicate'),
-            content=self.tr('Your input is a duplicate of an existing ignore'),
+            title=self.tr("Duplicate"),
+            content=self.tr("Your input is a duplicate of an existing ignore"),
             isClosable=True,
             tailPosition=TeachingTipTailPosition.BOTTOM,
             duration=2000,
-            parent=self
+            parent=self,
         )

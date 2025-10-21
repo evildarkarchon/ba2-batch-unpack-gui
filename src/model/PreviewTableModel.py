@@ -1,9 +1,9 @@
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
-from PySide6 import QtCore
-from PySide6.QtCore import Qt, QModelIndex
-from PySide6.QtGui import QBrush, QColor
 from humanize import naturalsize
+from PySide6 import QtCore
+from PySide6.QtCore import QModelIndex, Qt
+from PySide6.QtGui import QBrush, QColor
 
 
 class FileEntry(NamedTuple):
@@ -16,30 +16,30 @@ class FileEntry(NamedTuple):
 
 class PreviewTableModel(QtCore.QAbstractTableModel):
     # Data is assumed to be sorted according to their file size
-    def __init__(self, data: list[FileEntry]):
-        super(PreviewTableModel, self).__init__()
+    def __init__(self, data: list[FileEntry]) -> None:
+        super().__init__()
         self.files: list[FileEntry] = data
         self.bad_ba2_idx: list[int] = []
-        self.horizontalHeader = [self.tr('File Name'), self.tr('File Size'), self.tr('# Files'), self.tr('Mod')]
+        self.horizontalHeader = [self.tr("File Name"), self.tr("File Size"), self.tr("# Files"), self.tr("Mod")]
 
-    def data(self, index, role=Qt.ItemDataRole.DisplayRole):
+    def data(self, index: QModelIndex, role: Qt.ItemDataRole = Qt.ItemDataRole.DisplayRole) -> Any | None:
         if not index.isValid():
             return None
 
-        if role == Qt.ItemDataRole.DisplayRole or role == Qt.ItemDataRole.EditRole or role == Qt.ItemDataRole.UserRole:
+        if role in (Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.EditRole, Qt.ItemDataRole.UserRole):
             # Assumes the following layout
             # File Name, File Size, # Files, Path, Ignored
             if index.column() == 0:
                 return self.files[index.row()].file_name
-            elif index.column() == 1:
+            if index.column() == 1:
                 if role == Qt.ItemDataRole.UserRole:
                     return self.files[index.row()].file_size
                 return naturalsize(self.files[index.row()].file_size)
-            elif index.column() == 2:
+            if index.column() == 2:
                 return self.files[index.row()].num_files
-            elif index.column() == 3:
+            if index.column() == 3:
                 return self.files[index.row()].dir_name
-            elif index.column() == 4:
+            if index.column() == 4:
                 return self.files[index.row()].full_path
         elif role == Qt.ItemDataRole.BackgroundRole:
             if index.row() in self.bad_ba2_idx:
@@ -47,37 +47,39 @@ class PreviewTableModel(QtCore.QAbstractTableModel):
                 return QBrush(QColor(139, 0, 0))
         return None
 
-    def raw_data(self):
+    def raw_data(self) -> list[FileEntry]:
         return self.files
 
-    def add_bad_file(self, index):
+    def add_bad_file(self, index: int) -> None:
         self.bad_ba2_idx.append(index)
 
-    def size_at(self, index):
+    def size_at(self, index: int) -> int:
         if len(self.files) > index:
             return self.files[index].file_size
-        else:
-            return -1
+        return -1
 
-    def removeRow(self, row, parent=QModelIndex()):
+    def removeRow(self, row: int, parent: QModelIndex | None = None) -> bool:
+        if parent is None:
+            parent = QModelIndex()
         self.beginRemoveRows(parent, row, row)
         self.files.pop(row)
         self.endRemoveRows()
+        return True
 
-    def flags(self, index):
+    def flags(self, index: QModelIndex) -> Qt.ItemFlag | None:
         if not index.isValid():
             return None
 
         return Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable
 
-    def rowCount(self, _parent=None):
+    def rowCount(self, _parent: QModelIndex | None = None) -> int:
         # The length of the outer list.
         return len(self.files)
 
-    def columnCount(self, _parent=None):
+    def columnCount(self, _parent: QModelIndex | None = None) -> int:
         return 4
 
-    def headerData(self, section, orientation, role=...):
+    def headerData(self, section: int, orientation: Qt.Orientation, role: Qt.ItemDataRole = Qt.ItemDataRole.DisplayRole) -> Any | None:
         if role == Qt.ItemDataRole.DisplayRole and orientation == QtCore.Qt.Orientation.Horizontal:
             return self.horizontalHeader[section]
         return None

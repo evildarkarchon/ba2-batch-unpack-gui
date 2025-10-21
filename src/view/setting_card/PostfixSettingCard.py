@@ -1,11 +1,21 @@
-from typing import List, Union
+from typing import cast
 
-from PySide6.QtCore import Qt, Signal, QSize
+from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import (QWidget, QLabel,
-                               QHBoxLayout, QSizePolicy)
-from qfluentwidgets import ExpandSettingCard, ConfigItem, FluentIconBase, PushButton, qconfig, LineEdit, TeachingTip, \
-    InfoBarIcon, TeachingTipTailPosition, ToolButton, ToolTipFilter
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QWidget
+from qfluentwidgets import (
+    ConfigItem,
+    ExpandSettingCard,
+    FluentIconBase,
+    InfoBarIcon,
+    LineEdit,
+    PushButton,
+    TeachingTip,
+    TeachingTipTailPosition,
+    ToolButton,
+    ToolTipFilter,
+    qconfig,
+)
 from qfluentwidgets import FluentIcon as Fi
 
 
@@ -41,8 +51,8 @@ class PostfixSettingCard(ExpandSettingCard):
 
     postfix_changed = Signal(list)
 
-    def __init__(self, config_item: ConfigItem, icon: Union[str, QIcon, FluentIconBase], title: str,
-                 content: str = None, parent=None):
+    def __init__(self, config_item: ConfigItem, icon: str | QIcon | FluentIconBase, title: str,
+                 content: str | None = None, parent=None):
         """
         Parameters
         ----------
@@ -62,13 +72,13 @@ class PostfixSettingCard(ExpandSettingCard):
             parent widget
         """
 
-        super().__init__(icon, title, content, parent)
+        super().__init__(cast("str | QIcon | Fi", icon), title, cast("str", content), parent)
         self.config_item = config_item
         self.postfix_reset_button = ToolButton(Fi.CANCEL, self)
         self.postfix_input = LineEdit(self)
-        self.add_postfix_button = PushButton(self.tr('Add'), self, Fi.ADD)
+        self.add_postfix_button = PushButton(self.tr("Add"), self, Fi.ADD)
 
-        self.postfixes = qconfig.get(config_item).copy()  # type:List[str]
+        self.postfixes = qconfig.get(config_item).copy()  # type:list[str]
         self.postfixes_cards = []
         self.__initWidget()
 
@@ -86,8 +96,8 @@ class PostfixSettingCard(ExpandSettingCard):
         for postfix in self.postfixes:
             self.__add_postfix_item(postfix)
 
-        self.postfix_input.setPlaceholderText(self.tr('New postfix'))
-        self.postfix_reset_button.setToolTip(self.tr('Reset to default'))
+        self.postfix_input.setPlaceholderText(self.tr("New postfix"))
+        self.postfix_reset_button.setToolTip(self.tr("Reset to default"))
         self.postfix_reset_button.installEventFilter(ToolTipFilter(self.postfix_reset_button))
         self.add_postfix_button.clicked.connect(self.__add_postfix)
         self.postfix_reset_button.clicked.connect(self.__reset_postfix)
@@ -95,7 +105,7 @@ class PostfixSettingCard(ExpandSettingCard):
     def __add_postfix(self):
         # Validate input
         user_postfix = self.postfix_input.text()
-        if len(user_postfix) < 4 or user_postfix[-4:] != '.ba2':
+        if len(user_postfix) < 4 or user_postfix[-4:] != ".ba2":
             self.__show_ba2_failed_tip()
 
         self.__add_postfix_item(user_postfix.lower())
@@ -139,22 +149,22 @@ class PostfixSettingCard(ExpandSettingCard):
         TeachingTip.create(
             target=self.postfix_input,
             icon=InfoBarIcon.ERROR,
-            title=self.tr('Check your input'),
-            content=self.tr('Make sure your input contains \".ba2\" in the end'),
+            title=self.tr("Check your input"),
+            content=self.tr('Make sure your input contains ".ba2" in the end'),
             isClosable=True,
             tailPosition=TeachingTipTailPosition.BOTTOM,
             duration=2000,
-            parent=self
+            parent=self,
         )
 
     def __show_ba2_duplicate_tip(self):
         TeachingTip.create(
             target=self.postfix_input,
             icon=InfoBarIcon.ERROR,
-            title=self.tr('Duplicate'),
-            content=self.tr('Your input is a duplicate of an existing postfix'),
+            title=self.tr("Duplicate"),
+            content=self.tr("Your input is a duplicate of an existing postfix"),
             isClosable=True,
             tailPosition=TeachingTipTailPosition.BOTTOM,
             duration=2000,
-            parent=self
+            parent=self,
         )

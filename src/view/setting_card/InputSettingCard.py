@@ -1,17 +1,18 @@
-from typing import Union
+from typing import cast
 
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import (QFileDialog)
-from qfluentwidgets import ConfigItem, FluentIconBase, qconfig, LineEdit, ToolButton, SettingCard
+from PySide6.QtWidgets import QFileDialog
+from qfluentwidgets import ConfigItem, FluentIconBase, LineEdit, SettingCard, ToolButton, qconfig
 from qfluentwidgets import FluentIcon as Fi
 
 
 class InputSettingCard(SettingCard):
     """ A setting card with a line input """
 
-    def __init__(self, config_item: ConfigItem, icon: Union[str, QIcon, FluentIconBase], title: str,
-                 content: str = None, parent=None, extensions=None, folder=True,
-                 options=QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks):
+    def __init__(self, config_item: ConfigItem, icon: str | QIcon | FluentIconBase, title: str,
+                 content: str | None = None, parent=None, extensions: list[str] | None = None,
+                 folder: bool = True,
+                 options: QFileDialog.Option = QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks):
         """
         Parameters
         ----------
@@ -27,9 +28,10 @@ class InputSettingCard(SettingCard):
         content: str
             the content of card
         """
-        super().__init__(icon, title, content, parent)
+        # Cast parameters to satisfy parent class type requirements
+        super().__init__(cast("str | QIcon | Fi", icon), title, cast("str", content), parent)
 
-        self.extensions = extensions
+        self.extensions = cast("list[str]", extensions) if extensions else []
         self.input = LineEdit(self)
         self.button = ToolButton(Fi.FOLDER, self)
 
@@ -45,8 +47,8 @@ class InputSettingCard(SettingCard):
             self.setValue(qconfig.get(config_item))
 
         self.input.setText(qconfig.get(config_item))
-        self.input.setPlaceholderText(self.tr('Enter or choose a folder'))
-        self.button.setToolTip(self.tr('Choose a folder'))
+        self.input.setPlaceholderText(self.tr("Enter or choose a folder"))
+        self.button.setToolTip(self.tr("Choose a folder"))
 
         self.input.textChanged.connect(lambda: self.setValue(self.input.text()))
 
@@ -55,21 +57,21 @@ class InputSettingCard(SettingCard):
         else:
             self.button.clicked.connect(self.__open_file)
 
-    def setValue(self, value):
+    def setValue(self, value: str) -> None:
         if self.config_item:
             qconfig.set(self.config_item, value)
 
-    def resizeEvent(self, event):
+    def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
         self.input.setMinimumWidth(self.width() - 550)
 
-    def __open_file(self):
-        _filter = ';;'.join([f'{ext} files (*.{ext})' for ext in self.extensions] + ['All files (*)'])
-        file, _ = QFileDialog.getOpenFileName(self, self.tr('Choose a ba2 utility'), filter=_filter)
+    def __open_file(self) -> None:
+        _filter = ";;".join([f"{ext} files (*.{ext})" for ext in self.extensions] + ["All files (*)"])
+        file, _ = QFileDialog.getOpenFileName(self, self.tr("Choose a ba2 utility"), filter=_filter)
         if file:
             self.input.setText(file)
 
-    def __open_folder(self):
-        folder = QFileDialog.getExistingDirectory(self, self.tr('Choose a folder'), options=self.options)
+    def __open_folder(self) -> None:
+        folder = QFileDialog.getExistingDirectory(self, self.tr("Choose a folder"), options=self.options)
         if folder:
             self.input.setText(folder)

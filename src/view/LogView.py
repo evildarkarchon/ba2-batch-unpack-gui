@@ -1,12 +1,10 @@
 from traceback import format_exception
 from types import TracebackType
-from typing import Type
 
+from misc.Config import LogLevel, cfg
 from PySide6 import QtCore
 from PySide6.QtGui import QColor
 from qfluentwidgets import TextEdit
-
-from misc.Config import cfg, LogLevel
 
 
 # Adopted from a code snippet by eyllanesc from StackOverflow. Original post at https://stackoverflow.com/a/63853259
@@ -30,16 +28,16 @@ class LogView(TextEdit):
         if level.value > cfg.get(cfg.log_level).value:
             return
         if level == LogLevel.FATAL or level == LogLevel.ERROR:
-            color = QColor('red')
+            color = QColor("red")
         elif level == LogLevel.WARNING:
             # Light red
             color = QColor(255, 106, 91)
         elif level == LogLevel.INFO:
-            color = QColor('white')
+            color = QColor("white")
         else:
-            color = QColor('gray')
+            color = QColor("gray")
         self.setTextColor(color)
-        self.append(f'{level.name}: {message.rstrip()}')
+        self.append(f"{level.name}: {message.rstrip()}")
 
     def handle_stdout(self):
         message = self._process.readAllStandardOutput().data().decode()
@@ -50,8 +48,8 @@ class LogView(TextEdit):
         self.add_log(message)
 
     # Capture Python-originated exceptions
-    def catch_exception(self, _type: Type[BaseException], value: BaseException, _traceback: TracebackType):
-        traceback_str = ''.join(format_exception(_type, value, _traceback))
+    def catch_exception(self, _type: type[BaseException], value: BaseException, _traceback: TracebackType):
+        traceback_str = "".join(format_exception(_type, value, _traceback))
         self.add_log(traceback_str, LogLevel.ERROR)
 
     # Revert the show_debug setting to False when the window is closed
