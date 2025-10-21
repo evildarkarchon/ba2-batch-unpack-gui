@@ -1,10 +1,12 @@
-from PySide6.QtWidgets import QApplication
+from typing import Any
+
+from PySide6.QtWidgets import QApplication, QWidget
 from qfluentwidgets import MessageBox
 
 
-def show_failed_files(parent):
-    failed_files_text = "\n".join(parent.failed)
-    box = MessageBox(QApplication.translate("MassageBox", "The following files could not be loaded"),
+def show_failed_files(parent: QWidget) -> None:
+    failed_files_text: str = "\n".join(parent.failed)
+    box: MessageBox = MessageBox(QApplication.translate("MassageBox", "The following files could not be loaded"),
                      failed_files_text,
                      parent=parent)
     box.yesButton.setText(QApplication.translate("MassageBox", "Ok"))
@@ -17,8 +19,8 @@ def show_failed_files(parent):
     box.exec()
 
 
-def auto_not_available(parent):
-    w = MessageBox(QApplication.translate("MassageBox", "No unpacking necessary"),
+def auto_not_available(parent: Any) -> None:
+    w: MessageBox = MessageBox(QApplication.translate("MassageBox", "No unpacking necessary"),
                    QApplication.translate("MassageBox",
                                           "It appears that you are not over the ba2 limit (yet). "
                                           "No ba2 unpacking is necessary. "

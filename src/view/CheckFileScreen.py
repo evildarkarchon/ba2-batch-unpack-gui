@@ -5,7 +5,8 @@ from misc.BsaChecker import BsaChecker
 from misc.Config import cfg
 from prefab.InfoBar import show_result_toast
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QBoxLayout, QFileDialog, QFrame, QHBoxLayout, QVBoxLayout
+from PySide6.QtGui import QDragEnterEvent, QDragLeaveEvent, QDropEvent
+from PySide6.QtWidgets import QBoxLayout, QFileDialog, QFrame, QHBoxLayout, QVBoxLayout, QWidget
 from qfluentwidgets import (
     CheckBox,
     LineEdit,
@@ -19,46 +20,46 @@ from qfluentwidgets import FluentIcon as Fi
 
 
 class CheckFileScreen(QFrame):
-    def __init__(self, parent=None):
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent=parent)
         self.setObjectName("CheckFileScreen")
-        self.layout = QVBoxLayout(self)
+        self.layout: QVBoxLayout = QVBoxLayout(self)
 
         # Subsection Setup
-        self.setup_title = SubtitleLabel(self.tr("ba2 checkup setup"), self)
-        self.top_layout = QHBoxLayout()
+        self.setup_title: SubtitleLabel = SubtitleLabel(self.tr("ba2 checkup setup"), self)
+        self.top_layout: QHBoxLayout = QHBoxLayout()
 
         # Folder chooser
-        self.folder_layout = QVBoxLayout()
-        self.folder_label = StrongBodyLabel(self.tr("Fallout 4 mod folder"), self)
-        self.folder_layout_inner = QHBoxLayout()
-        self.folder_input = LineEdit(self)
-        self.folder_button = ToolButton(Fi.FOLDER, self)
+        self.folder_layout: QVBoxLayout = QVBoxLayout()
+        self.folder_label: StrongBodyLabel = StrongBodyLabel(self.tr("Fallout 4 mod folder"), self)
+        self.folder_layout_inner: QHBoxLayout = QHBoxLayout()
+        self.folder_input: LineEdit = LineEdit(self)
+        self.folder_button: ToolButton = ToolButton(Fi.FOLDER, self)
 
         # Deep scan
-        self.deep_scan_title = StrongBodyLabel(self.tr("Deep scan"), self)
-        self.deep_scan_checkbox = CheckBox(self.tr("Enable"), self)
-        self.deep_scan_layout = QVBoxLayout()
+        self.deep_scan_title: StrongBodyLabel = StrongBodyLabel(self.tr("Deep scan"), self)
+        self.deep_scan_checkbox: CheckBox = CheckBox(self.tr("Enable"), self)
+        self.deep_scan_layout: QVBoxLayout = QVBoxLayout()
 
         # Start button
-        self.start_layout = QHBoxLayout()
-        self.start_button = PrimaryPushButton(Fi.SEND_FILL, self.tr("Start"), self)
+        self.start_layout: QHBoxLayout = QHBoxLayout()
+        self.start_button: PrimaryPushButton = PrimaryPushButton(Fi.SEND_FILL, self.tr("Start"), self)
 
         # Results
-        self.preview_title = SubtitleLabel(self.tr("Results"), self)
-        self.results_box = TextEdit(self)
-        # self.preview_progress = ProgressBar()
+        self.preview_title: SubtitleLabel = SubtitleLabel(self.tr("Results"), self)
+        self.results_box: TextEdit = TextEdit(self)
+        # self.preview_progress: ProgressBar = ProgressBar()
 
         # Hint on top of the preview table
-        self.preview_hint_layout = QBoxLayout(QBoxLayout.Direction.LeftToRight, self.results_box)
-        self.preview_hint = SubtitleLabel(self.tr("Select or drag 'n drop a folder here to get started"), self)
+        self.preview_hint_layout: QBoxLayout = QBoxLayout(QBoxLayout.Direction.LeftToRight, self.results_box)
+        self.preview_hint: SubtitleLabel = SubtitleLabel(self.tr("Select or drag 'n drop a folder here to get started"), self)
 
         self.__setup_interface()
 
-        self.checker = None
-        self.first_output = True
+        self.checker: BsaChecker | None = None
+        self.first_output: bool = True
 
-    def __setup_interface(self):
+    def __setup_interface(self) -> None:
         self.layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         # Setup section
@@ -119,7 +120,7 @@ class CheckFileScreen(QFrame):
 
         self.setLayout(self.layout)
 
-    def __check_files(self):
+    def __check_files(self) -> None:
         self.results_box.clear()
         self.results_box.append(self.tr("Checking ba2 files... Please wait."))
         # self.preview_progress.setHidden(False)
@@ -128,22 +129,22 @@ class CheckFileScreen(QFrame):
 
         # deep scan
         if self.deep_scan_checkbox.isChecked():
-            self.checker = BsaChecker(self, self.folder_input.text(), True)
+            self.checker = BsaChecker(self, self.folder_input.text(), deep_scan=True)
         else:
             # normal scan
-            self.checker = BsaChecker(self, self.folder_input.text(), False)
+            self.checker = BsaChecker(self, self.folder_input.text(), deep_scan=False)
         self.checker.done_processing.connect(self.__show_results)
         self.checker.issue_found.connect(self.__update_output)
         self.start_button.setEnabled(False)
         self.checker.start()
         self.checker.finished.connect(self.__check_finished)
 
-    def __check_finished(self):
+    def __check_finished(self) -> None:
         del self.checker
         self.results_box.append(self.tr("Done!"))
         self.start_button.setEnabled(True)
 
-    def __update_output(self, text):
+    def __update_output(self, text: str) -> None:
         if self.first_output:
             self.results_box.clear()
             self.first_output = False
@@ -153,11 +154,11 @@ class CheckFileScreen(QFrame):
         else:
             self.results_box.append(text)
 
-    def __show_results(self, results):
+    def __show_results(self, results: list) -> None:
         show_result_toast(results, "check")
 
-    def __check_folder(self):
-        folder = self.folder_input.text()
+    def __check_folder(self) -> None:
+        folder: str = self.folder_input.text()
         if not pathlib.Path(folder).is_dir():
             self.start_button.setEnabled(False)
             return
@@ -165,7 +166,7 @@ class CheckFileScreen(QFrame):
         self.preview_hint.setText("")
         cfg.set(cfg.saved_dir, folder)
 
-    def __open_folder(self):
+    def __open_folder(self) -> None:
         self.folder_input.setText(QFileDialog.getExistingDirectory(self, self.tr("Open your Fallout 4 mod folder"),
                                                                    options=QFileDialog.Option.ShowDirsOnly |
                                                                            QFileDialog.Option.DontResolveSymlinks))
@@ -173,18 +174,18 @@ class CheckFileScreen(QFrame):
 
         # Drag and drop
 
-    def dragEnterEvent(self, event):
+    def dragEnterEvent(self, event: QDragEnterEvent) -> None:
         self.preview_hint.setText(self.tr("Drop your Fallout 4 mod folder here"))
         if event.mimeData().hasUrls():
             event.accept()
         else:
             event.ignore()
 
-    def dragLeaveEvent(self, event):
+    def dragLeaveEvent(self, event: QDragLeaveEvent) -> None:
         self.preview_hint.setText(self.tr("Select or drag 'n drop a folder here to get started"))
 
-    def dropEvent(self, event):
-        files = [u.toLocalFile() for u in event.mimeData().urls()]
+    def dropEvent(self, event: QDropEvent) -> None:
+        files: list[str] = [u.toLocalFile() for u in event.mimeData().urls()]
         if len(files) == 1 and pathlib.Path(files[0]).is_dir():
             self.folder_input.setText(files[0])
             self.preview_hint.setText("")

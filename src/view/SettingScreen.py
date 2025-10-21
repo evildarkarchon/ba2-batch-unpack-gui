@@ -31,22 +31,22 @@ from view.setting_card.PostfixSettingCard import PostfixSettingCard
 class SettingScreen(ScrollArea):
     checkUpdateSig = Signal()
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent=parent)
 
         self.setObjectName("SettingScreen")
 
-        self.scroll_widget = QWidget()
-        self.expand_layout = ExpandLayout(self.scroll_widget)
+        self.scroll_widget: QWidget = QWidget()
+        self.expand_layout: ExpandLayout = ExpandLayout(self.scroll_widget)
 
         # setting label
-        self.setting_label = QLabel(self.tr("Settings"), self)
+        self.setting_label: QLabel = QLabel(self.tr("Settings"), self)
 
         # extraction
-        self.extraction_group = SettingCardGroup(
+        self.extraction_group: SettingCardGroup = SettingCardGroup(
             self.tr("Extraction"), self.scroll_widget,
         )
-        self.postfixes_card = PostfixSettingCard(
+        self.postfixes_card: PostfixSettingCard = PostfixSettingCard(
             cfg.postfixes,
             Fi.TAG,
             self.tr("Postfixes"),
@@ -54,7 +54,7 @@ class SettingScreen(ScrollArea):
                     '"xyzmod - Main.ba2" and "abcmod - main.BA2". Must end in ".ba2"'),
             parent=self.extraction_group,
         )
-        self.ignored_card = IgnoredSettingCard(
+        self.ignored_card: IgnoredSettingCard = IgnoredSettingCard(
             cfg.ignored,
             Fi.REMOVE_FROM,
             self.tr("Ignored files"),
@@ -62,14 +62,14 @@ class SettingScreen(ScrollArea):
                     'To use regex, wrap the pattern inside {}, e.g. "{.*[dD]iamond.*}"'),
             parent=self.extraction_group,
         )
-        self.ignore_bad_card = SwitchSettingCard(
+        self.ignore_bad_card: SwitchSettingCard = SwitchSettingCard(
             Fi.DICTIONARY_ADD,
             self.tr("Ignore bad files"),
             self.tr("Automatically ignore ba2 files that cannot be opened"),
             cfg.ignore_bad_files,
             parent=self.extraction_group,
         )
-        self.auto_backup_card = SwitchSettingCard(
+        self.auto_backup_card: SwitchSettingCard = SwitchSettingCard(
             Fi.COPY,
             self.tr("Automatic backup"),
             self.tr("Automatically back up ba2 files extracted"),
@@ -78,8 +78,8 @@ class SettingScreen(ScrollArea):
         )
 
         # personalization
-        self.personal_group = SettingCardGroup(self.tr("Personalization"), self.scroll_widget)
-        self.theme_card = ComboBoxSettingCard(
+        self.personal_group: SettingCardGroup = SettingCardGroup(self.tr("Personalization"), self.scroll_widget)
+        self.theme_card: ComboBoxSettingCard = ComboBoxSettingCard(
             cfg.themeMode,
             Fi.BRUSH,
             self.tr("Theme"),
@@ -90,14 +90,14 @@ class SettingScreen(ScrollArea):
             ],
             parent=self.personal_group,
         )
-        self.theme_color_card = CustomColorSettingCard(
+        self.theme_color_card: CustomColorSettingCard = CustomColorSettingCard(
             cfg.themeColor,
             Fi.PALETTE,
             self.tr("Color"),
             self.tr("Change the theme color of the app"),
             self.personal_group,
         )
-        self.language_card = ComboBoxSettingCard(
+        self.language_card: ComboBoxSettingCard = ComboBoxSettingCard(
             cfg.language,
             Fi.LANGUAGE,
             self.tr("Language"),
@@ -107,8 +107,8 @@ class SettingScreen(ScrollArea):
         )
 
         # update software
-        self.update_group = SettingCardGroup(self.tr("Update"), self.scroll_widget)
-        self.update_card = SwitchSettingCard(
+        self.update_group: SettingCardGroup = SettingCardGroup(self.tr("Update"), self.scroll_widget)
+        self.update_card: SwitchSettingCard = SwitchSettingCard(
             Fi.UPDATE,
             self.tr("Check for updates"),
             self.tr("Automatically check and notify you of updates"),
@@ -117,8 +117,8 @@ class SettingScreen(ScrollArea):
         )
 
         # Advanced
-        self.advanced_group = SettingCardGroup(self.tr("Advanced"), self.scroll_widget)
-        self.show_debug_card = SwitchSettingCard(
+        self.advanced_group: SettingCardGroup = SettingCardGroup(self.tr("Advanced"), self.scroll_widget)
+        self.show_debug_card: SwitchSettingCard = SwitchSettingCard(
             Fi.COMMAND_PROMPT,
             self.tr("Show log output"),
             self.tr("Show a separate window with debugging information"),
@@ -126,7 +126,7 @@ class SettingScreen(ScrollArea):
             parent=self.advanced_group,
         )
 
-        self.extraction_path_card = InputSettingCard(
+        self.extraction_path_card: InputSettingCard = InputSettingCard(
             cfg.extraction_path,
             CustomIcon.FOLDER_ARROW_UP,
             self.tr("Extraction path"),
@@ -135,7 +135,7 @@ class SettingScreen(ScrollArea):
             self.advanced_group,
         )
 
-        self.backup_path_card = InputSettingCard(
+        self.backup_path_card: InputSettingCard = InputSettingCard(
             cfg.backup_path,
             Fi.DOCUMENT,
             self.tr("Backup path"),
@@ -144,7 +144,7 @@ class SettingScreen(ScrollArea):
             self.advanced_group,
         )
 
-        self.ext_ba2_card = InputSettingCard(
+        self.ext_ba2_card: InputSettingCard = InputSettingCard(
             cfg.ext_ba2_exe,
             Fi.APPLICATION,
             self.tr("External ba2 tool"),
@@ -156,10 +156,10 @@ class SettingScreen(ScrollArea):
         )
 
         # application
-        self.about_group = SettingCardGroup(self.tr("About"), self.scroll_widget)
-        self.about_setting_card = AboutSettingCard(self.about_group)
+        self.about_group: SettingCardGroup = SettingCardGroup(self.tr("About"), self.scroll_widget)
+        self.about_setting_card: AboutSettingCard = AboutSettingCard(self.about_group)
 
-        self.kofi_card = HyperlinkCard(
+        self.kofi_card: HyperlinkCard = HyperlinkCard(
             KOFI_URL,
             self.tr("Buy me a coffee"),
             Fi.HEART,
@@ -168,7 +168,7 @@ class SettingScreen(ScrollArea):
             self.about_group,
         )
 
-        self.credits_card = HyperlinkCard(
+        self.credits_card: HyperlinkCard = HyperlinkCard(
             CREDITS_URL,
             self.tr("View"),
             Fi.BOOK_SHELF,
@@ -177,11 +177,11 @@ class SettingScreen(ScrollArea):
             self.about_group,
         )
 
-        self.pending_update = False
+        self.pending_update: bool = False
 
         self.__init_widget()
 
-    def __init_widget(self):
+    def __init_widget(self) -> None:
         self.resize(1000, 800)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
@@ -235,25 +235,25 @@ class SettingScreen(ScrollArea):
         self.expand_layout.addWidget(self.advanced_group)
         self.expand_layout.addWidget(self.about_group)
 
-    def showEvent(self, event):
+    def showEvent(self, event: Any) -> None:
         super().showEvent(event)
         if self.pending_update:
             self.ignored_card.ignored_updated()
             self.pending_update = False
 
-    def notify_ignore(self):
+    def notify_ignore(self) -> None:
         self.pending_update = True
 
-    def __set_qss(self):
+    def __set_qss(self) -> None:
         """ set style sheet """
         self.scroll_widget.setObjectName("scrollWidget")
         self.setting_label.setObjectName("settingLabel")
 
-        theme = "dark" if isDarkTheme() else "light"
+        theme: str = "dark" if isDarkTheme() else "light"
         with pathlib.Path(resource_path(f"resources/qss/{theme}/setting_interface.qss")).open(encoding="utf-8") as f:
             self.setStyleSheet(f.read())
 
-    def __show_restart_tooltip(self):
+    def __show_restart_tooltip(self) -> None:
         """ show restart tooltip """
         InfoBar.warning(
             "",
@@ -262,7 +262,7 @@ class SettingScreen(ScrollArea):
             parent=self.window(),
         )
 
-    def __on_theme_changed(self, theme: Theme):
+    def __on_theme_changed(self, theme: Theme) -> None:
         """ theme changed slot """
         # change the theme of qfluentwidgets
         setTheme(theme)
@@ -270,17 +270,17 @@ class SettingScreen(ScrollArea):
         # chang the theme of setting interface
         self.__set_qss()
 
-    def __on_theme_color_changed(self, color: str):
+    def __on_theme_color_changed(self, color: str) -> None:
         """ theme color changed slot """
         setThemeColor(color)
 
-    def __on_debug_changed(self):
+    def __on_debug_changed(self) -> None:
         if cfg.get(cfg.show_debug):
             QApplication.instance().log_view.show()
         else:
             QApplication.instance().log_view.hide()
 
-    def __connect_signal_to_slot(self):
+    def __connect_signal_to_slot(self) -> None:
         """ connect signal to slot """
         cfg.appRestartSig.connect(self.__show_restart_tooltip)
         cfg.themeChanged.connect(self.__on_theme_changed)
