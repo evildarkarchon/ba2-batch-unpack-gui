@@ -1,11 +1,12 @@
 from traceback import format_exception
 from types import TracebackType
 
-from misc.Config import LogLevel, cfg
 from PySide6 import QtCore
 from PySide6.QtGui import QCloseEvent, QColor
 from PySide6.QtWidgets import QWidget
 from qfluentwidgets import TextEdit
+
+from misc.Config import LogLevel, cfg
 
 
 # Adopted from a code snippet by eyllanesc from StackOverflow. Original post at https://stackoverflow.com/a/63853259
@@ -29,7 +30,7 @@ class LogView(TextEdit):
         if level.value > cfg.get(cfg.log_level).value:
             return
         color: QColor
-        if level == LogLevel.FATAL or level == LogLevel.ERROR:
+        if level in {LogLevel.FATAL, LogLevel.ERROR}:
             color = QColor("red")
         elif level == LogLevel.WARNING:
             # Light red
@@ -42,11 +43,13 @@ class LogView(TextEdit):
         self.append(f"{level.name}: {message.rstrip()}")
 
     def handle_stdout(self) -> None:
-        message: str = self._process.readAllStandardOutput().data().decode()
+        data = self._process.readAllStandardOutput()
+        message: str = data.toStdString()
         self.add_log(message)
 
     def handle_stderr(self) -> None:
-        message: str = self._process.readAllStandardError().data().decode()
+        data = self._process.readAllStandardError()
+        message: str = data.toStdString()
         self.add_log(message)
 
     # Capture Python-originated exceptions
