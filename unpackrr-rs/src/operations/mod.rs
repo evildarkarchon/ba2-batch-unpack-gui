@@ -5,17 +5,28 @@
 //! - BA2 extraction orchestration
 //! - File validation
 //! - Size parsing utilities
+//! - Path handling utilities
+
+pub mod extract;
+pub mod path;
+pub mod scan;
 
 use crate::error::{Result, ValidationError};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-/// Scan a directory for BA2 files
-///
-/// Searches second-tier folders for BA2 files matching configured patterns
-pub async fn scan_for_ba2(_path: &Path) -> Result<Vec<BA2FileInfo>> {
-    // TODO: Implement in Phase 1.5
-    Ok(Vec::new())
-}
+// Re-export scan module types and functions
+pub use scan::{scan_for_ba2, ScanProgress};
+
+// Re-export extract module types and functions
+pub use extract::{
+    extract_all, extract_ba2_file, ExtractionProgress, ExtractionResult, FileExtractionResult,
+};
+
+// Re-export path utilities
+pub use path::{
+    canonicalize_path, get_parent, is_valid_directory, is_valid_file, normalize_separators,
+    paths_equal, resolve_path,
+};
 
 /// Information about a discovered BA2 file
 #[derive(Debug, Clone)]
@@ -40,35 +51,67 @@ pub struct BA2FileInfo {
 }
 
 /// Parse a size string (e.g., "10MB", "1.5GB") into bytes
+///
+/// This function matches the Python implementation's behavior:
+/// - Uses base-1000 units (1KB = 1000 bytes, not 1024)
+/// - Case-insensitive
+/// - Supports units: B, KB, MB, GB, TB
+/// - Handles floating point numbers
+///
+/// # Examples
+///
+/// ```
+/// use unpackrr::operations::parse_size;
+///
+/// assert_eq!(parse_size("100B").unwrap(), 100);
+/// assert_eq!(parse_size("1KB").unwrap(), 1000);
+/// assert_eq!(parse_size("1.5MB").unwrap(), 1_500_000);
+/// assert_eq!(parse_size("10GB").unwrap(), 10_000_000_000);
+/// ```
+///
+/// # Panics
+///
+/// This function should not panic as the regex pattern is valid.
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_precision_loss)]
 pub fn parse_size(size_str: &str) -> Result<u64> {
-    let size_str = size_str.trim().to_uppercase();
+    let mut size_str = size_str.trim().to_uppercase();
 
-    // Extract number and unit
-    let mut num_str = String::new();
-    let mut unit_str = String::new();
-
-    for ch in size_str.chars() {
-        if ch.is_ascii_digit() || ch == '.' {
-            num_str.push(ch);
-        } else if ch.is_alphabetic() {
-            unit_str.push(ch);
-        }
+    // Add 'B' suffix if not present
+    if !size_str.ends_with('B') {
+        size_str.push('B');
     }
 
-    let num: f64 = num_str
-        .parse()
-        .map_err(|_| ValidationError::InvalidSize(size_str.clone()))?;
+    // Use regex to separate number from unit (mimicking Python's re.sub)
+    // Pattern: r"([KMGT]?B)" -> r" \1"
+    // This inserts a space before the unit if not already there
+    let re = regex::Regex::new(r"([KMGT]?B)").unwrap();
+    let size_str = re.replace(&size_str, " $1");
 
-    let multiplier: u64 = match unit_str.as_str() {
-        "B" | "" => 1,
-        "KB" => 1024,
-        "MB" => 1024 * 1024,
-        "GB" => 1024 * 1024 * 1024,
-        "TB" => 1024 * 1024 * 1024 * 1024,
-        _ => return Err(ValidationError::InvalidSize(size_str).into()),
+    // Split into parts and parse
+    let parts: Vec<&str> = size_str.split_whitespace().collect();
+
+    if parts.len() != 2 {
+        return Err(ValidationError::InvalidSize(size_str.to_string()).into());
+    }
+
+    let number_str = parts[0];
+    let unit_str = parts[1];
+
+    let number: f64 = number_str
+        .parse()
+        .map_err(|_| ValidationError::InvalidSize(size_str.to_string()))?;
+
+    // Python uses base-1000 units, not base-1024
+    let multiplier: u64 = match unit_str {
+        "B" => 1,
+        "KB" => 1_000,
+        "MB" => 1_000_000,
+        "GB" => 1_000_000_000,
+        "TB" => 1_000_000_000_000,
+        _ => return Err(ValidationError::InvalidSize(size_str.to_string()).into()),
     };
 
-    Ok((num * multiplier as f64) as u64)
+    Ok((number * multiplier as f64) as u64)
 }
 
 /// Format a size in bytes to human-readable format
@@ -79,18 +122,41 @@ pub fn format_size(bytes: u64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     #[test]
     fn test_parse_size() {
         assert_eq!(parse_size("100B").unwrap(), 100);
-        assert_eq!(parse_size("1KB").unwrap(), 1024);
-        assert_eq!(parse_size("1MB").unwrap(), 1024 * 1024);
-        assert_eq!(parse_size("1.5MB").unwrap(), (1.5 * 1024.0 * 1024.0) as u64);
+        assert_eq!(parse_size("1KB").unwrap(), 1_000);
+        assert_eq!(parse_size("1MB").unwrap(), 1_000_000);
+        assert_eq!(parse_size("1.5MB").unwrap(), 1_500_000);
+        assert_eq!(parse_size("10GB").unwrap(), 10_000_000_000);
     }
 
     #[test]
     fn test_parse_size_case_insensitive() {
         assert_eq!(parse_size("1mb").unwrap(), parse_size("1MB").unwrap());
+        assert_eq!(parse_size("1kb").unwrap(), 1_000);
+    }
+
+    #[test]
+    fn test_parse_size_no_suffix() {
+        // Should add 'B' suffix if not present
+        assert_eq!(parse_size("100").unwrap(), 100);
+        assert_eq!(parse_size("1K").unwrap(), 1_000);
+    }
+
+    #[test]
+    fn test_parse_size_with_spaces() {
+        assert_eq!(parse_size("1 MB").unwrap(), 1_000_000);
+        assert_eq!(parse_size(" 100 KB ").unwrap(), 100_000);
+    }
+
+    #[test]
+    fn test_parse_size_invalid() {
+        assert!(parse_size("invalid").is_err());
+        assert!(parse_size("").is_err());
+        assert!(parse_size("MB").is_err());
     }
 
     #[test]

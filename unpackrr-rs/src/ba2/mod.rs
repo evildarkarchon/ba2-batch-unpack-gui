@@ -15,7 +15,7 @@ pub use extractor::{extract_ba2, list_ba2, BSArchConfig};
 use crate::error::{BA2Error, Result};
 use std::fs::File;
 use std::io::{BufReader, Read};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// BA2 archive header
 ///
@@ -173,6 +173,7 @@ pub fn is_valid_ba2(path: &Path) -> bool {
 mod tests {
     use super::*;
     use std::io::Cursor;
+    use std::path::PathBuf;
 
     #[test]
     fn test_ba2_magic() {

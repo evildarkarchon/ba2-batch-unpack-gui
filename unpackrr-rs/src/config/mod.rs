@@ -11,10 +11,8 @@ use crate::error::{ConfigError, Result};
 use directories::ProjectDirs;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
 
 /// Main application configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -346,6 +344,39 @@ impl AppConfig {
             }
         }
         Ok(patterns)
+    }
+
+    /// Check if a file should be ignored based on configured patterns
+    ///
+    /// This method checks both the file name and full path against:
+    /// - Exact path matches
+    /// - Substring matches
+    /// - Regex patterns
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The full path to the file to check
+    ///
+    /// # Returns
+    ///
+    /// `true` if the file should be ignored, `false` otherwise
+    pub fn should_ignore_file(&self, path: &Path) -> bool {
+        // Get file name for checking
+        let file_name = match path.file_name().and_then(|n| n.to_str()) {
+            Some(name) => name,
+            None => return false,
+        };
+
+        // Check exact path match
+        if self.extraction.ignored_files.contains(&path.to_string_lossy().to_string()) {
+            return true;
+        }
+
+        // Get regex patterns (ignore errors, just skip regex matching if it fails)
+        let regex_patterns = self.get_ignored_patterns().unwrap_or_default();
+
+        // Use the standalone function for the actual checking logic
+        should_ignore_file(file_name, &self.extraction.ignored_files, &regex_patterns)
     }
 }
 

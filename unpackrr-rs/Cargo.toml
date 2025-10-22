@@ -19,8 +19,9 @@ strip = true
 opt-level = 1
 
 [dependencies]
-# GUI Framework
-slint = { version = "1.9", features = ["backend-winit", "renderer-skia"] }
+# GUI Framework - Using winit backend with Skia renderer on all platforms
+# Disable default features to prevent auto-selection of Qt backend on Linux
+slint = { version = "1.9", default-features = false, features = ["backend-winit", "renderer-skia", "std", "compat-1-2"] }
 
 # Async compatibility (CRITICAL: Slint + Tokio bridge)
 async-compat = "0.2"
@@ -46,7 +47,8 @@ dunce = "1.0"
 
 # Logging
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "ansi"] }
+tracing-appender = "0.2"
 
 # Parallel processing
 rayon = "1.10"
@@ -56,6 +58,9 @@ memmap2 = "0.9"
 
 # Size formatting
 humansize = "2.1"
+
+# Native file dialogs
+rfd = "0.15"
 
 [build-dependencies]
 slint-build = "1.9"
@@ -67,3 +72,6 @@ nursery = { level = "warn", priority = -1 }
 # Allow some pedantic lints that conflict with readability
 must_use_candidate = "allow"
 missing_errors_doc = "allow"
+
+[dev-dependencies]
+tempfile = "3.23.0"

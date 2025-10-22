@@ -1,21 +1,702 @@
 // Main window for Unpackrr-rs
 // Fluent Design styled BA2 batch unpacker
 
+import { VerticalBox, HorizontalBox, Button, ListView, ScrollView } from "std-widgets.slint";
+
+// Fluent Design Color Palette
+global Colors {
+    // Light theme colors
+    in-out property <bool> dark-mode: false;
+
+    out property <color> background: dark-mode ? #1e1e1e : #f3f3f3;
+    out property <color> surface: dark-mode ? #2d2d2d : #ffffff;
+    out property <color> surface-hover: dark-mode ? #3a3a3a : #f5f5f5;
+    out property <color> border: dark-mode ? #404040 : #e0e0e0;
+    out property <color> text-primary: dark-mode ? #ffffff : #000000;
+    out property <color> text-secondary: dark-mode ? #b0b0b0 : #666666;
+    out property <color> accent: #0078d4; // Fluent blue
+    out property <color> accent-hover: #106ebe;
+    out property <color> accent-pressed: #005a9e;
+    out property <color> danger: #d13438;
+    out property <color> success: #107c10;
+    out property <color> warning: #ffaa44;
+
+    // Sidebar colors
+    out property <color> sidebar-background: dark-mode ? #252525 : #fafafa;
+    out property <color> sidebar-selected: dark-mode ? #2d2d2d : #f0f0f0;
+    out property <color> sidebar-hover: dark-mode ? #2a2a2a : #f5f5f5;
+}
+
+// Typography
+global Typography {
+    out property <length> title-size: 24px;
+    out property <length> subtitle-size: 18px;
+    out property <length> body-size: 14px;
+    out property <length> caption-size: 12px;
+}
+
+// Navigation item component
+component NavigationItem inherits Rectangle {
+    in property <string> text;
+    in property <string> icon;
+    in property <bool> selected: false;
+
+    callback clicked <=> touch.clicked;
+
+    height: 48px;
+    background: selected ? Colors.sidebar-selected : transparent;
+    border-radius: 4px;
+
+    states [
+        hover when touch.has-hover && !selected: {
+            background: Colors.sidebar-hover;
+        }
+        pressed when touch.pressed: {
+            background: Colors.sidebar-selected;
+        }
+    ]
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+    }
+
+    HorizontalBox {
+        padding-left: 16px;
+        padding-right: 16px;
+        spacing: 12px;
+
+        // Icon (using text for now, will use actual icons later)
+        Text {
+            text: icon;
+            font-size: 20px;
+            color: selected ? Colors.accent : Colors.text-secondary;
+            vertical-alignment: center;
+        }
+
+        // Label
+        Text {
+            text: root.text;
+            font-size: Typography.body-size;
+            color: selected ? Colors.accent : Colors.text-primary;
+            vertical-alignment: center;
+            horizontal-alignment: left;
+        }
+    }
+}
+
+// Main navigation sidebar
+component NavigationSidebar inherits Rectangle {
+    in-out property <int> selected-index: 0;
+
+    callback navigation-changed(int);
+
+    width: 220px;
+    background: Colors.sidebar-background;
+
+    // Border on right side
+    Rectangle {
+        x: parent.width - 1px;
+        width: 1px;
+        height: 100%;
+        background: Colors.border;
+    }
+
+    VerticalBox {
+        padding: 8px;
+        spacing: 4px;
+
+        // App title
+        Rectangle {
+            height: 60px;
+
+            Text {
+                text: "Unpackrr";
+                font-size: Typography.subtitle-size;
+                font-weight: 600;
+                color: Colors.text-primary;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+
+        // Spacer
+        Rectangle { height: 8px; }
+
+        // Navigation items
+        NavigationItem {
+            text: "Extraction";
+            icon: "🏠";
+            selected: selected-index == 0;
+            clicked => {
+                selected-index = 0;
+                navigation-changed(0);
+            }
+        }
+
+        NavigationItem {
+            text: "Check Files";
+            icon: "🔍";
+            selected: selected-index == 1;
+            clicked => {
+                selected-index = 1;
+                navigation-changed(1);
+            }
+        }
+
+        // Push settings to bottom
+        Rectangle {
+            vertical-stretch: 1;
+        }
+
+        NavigationItem {
+            text: "Settings";
+            icon: "⚙";
+            selected: selected-index == 2;
+            clicked => {
+                selected-index = 2;
+                navigation-changed(2);
+            }
+        }
+    }
+}
+
+// Fluent Design Button Component
+component FluentButton inherits Rectangle {
+    in property <string> text;
+    in property <bool> enabled: true;
+    in property <bool> primary: false;
+
+    callback clicked <=> touch.clicked;
+
+    height: 32px;
+    border-radius: 4px;
+    background: !enabled ? Colors.border :
+                primary ? Colors.accent :
+                Colors.surface;
+
+    states [
+        hover when touch.has-hover && enabled && !primary: {
+            background: Colors.surface-hover;
+        }
+        hover-primary when touch.has-hover && enabled && primary: {
+            background: Colors.accent-hover;
+        }
+        pressed when touch.pressed && enabled: {
+            background: primary ? Colors.accent-pressed : Colors.border;
+        }
+        disabled when !enabled: {
+            background: Colors.border;
+        }
+    ]
+
+    touch := TouchArea {
+        mouse-cursor: enabled ? pointer : default;
+        enabled: root.enabled;
+    }
+
+    Text {
+        text: root.text;
+        color: !root.enabled ? Colors.text-secondary :
+               root.primary ? #ffffff : Colors.text-primary;
+        font-size: Typography.body-size;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}
+
+// Table header cell component
+component TableHeaderCell inherits Rectangle {
+    in property <string> text;
+    in property <int> column-index;
+
+    callback clicked(int);
+
+    background: Colors.surface;
+
+    states [
+        hover when touch.has-hover: {
+            background: Colors.surface-hover;
+        }
+    ]
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.clicked(root.column-index);
+        }
+    }
+
+    HorizontalBox {
+        padding-left: 12px;
+        padding-right: 12px;
+
+        Text {
+            text: root.text;
+            font-size: Typography.body-size;
+            font-weight: 600;
+            color: Colors.text-primary;
+            vertical-alignment: center;
+            horizontal-alignment: left;
+        }
+
+        // Sort indicator placeholder (can be enhanced later)
+        Text {
+            text: "⇅";
+            font-size: 10px;
+            color: Colors.text-secondary;
+            vertical-alignment: center;
+        }
+    }
+}
+
+// File table row data structure
+export struct FileRowData {
+    file-name: string,
+    file-size: string,
+    num-files: string,
+    mod-name: string,
+    is-bad: bool,
+}
+
+// Table row component
+component FileTableRow inherits Rectangle {
+    in property <FileRowData> row-data;
+    in property <bool> selected: false;
+
+    callback clicked();
+
+    height: 36px;
+    background: row-data.is-bad ? #8b0000 :  // Dark red for corrupted files
+                selected ? Colors.sidebar-selected :
+                transparent;
+
+    states [
+        hover when touch.has-hover && !row-data.is-bad: {
+            background: Colors.surface-hover;
+        }
+    ]
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalBox {
+        spacing: 0;
+
+        // File Name column
+        Rectangle {
+            width: 35%;
+            Text {
+                text: row-data.file-name;
+                font-size: Typography.body-size;
+                color: row-data.is-bad ? #ffffff : Colors.text-primary;
+                vertical-alignment: center;
+                horizontal-alignment: left;
+                overflow: elide;
+                x: 12px;
+            }
+        }
+
+        // File Size column
+        Rectangle {
+            width: 20%;
+            Text {
+                text: row-data.file-size;
+                font-size: Typography.body-size;
+                color: row-data.is-bad ? #ffffff : Colors.text-primary;
+                vertical-alignment: center;
+                horizontal-alignment: left;
+                x: 12px;
+            }
+        }
+
+        // Num Files column
+        Rectangle {
+            width: 15%;
+            Text {
+                text: row-data.num-files;
+                font-size: Typography.body-size;
+                color: row-data.is-bad ? #ffffff : Colors.text-primary;
+                vertical-alignment: center;
+                horizontal-alignment: left;
+                x: 12px;
+            }
+        }
+
+        // Mod Name column
+        Rectangle {
+            width: 30%;
+            Text {
+                text: row-data.mod-name;
+                font-size: Typography.body-size;
+                color: row-data.is-bad ? #ffffff : Colors.text-primary;
+                vertical-alignment: center;
+                horizontal-alignment: left;
+                overflow: elide;
+                x: 12px;
+            }
+        }
+    }
+}
+
+// Extraction Screen (MVP - Phase 1.8)
+component ExtractionScreen inherits Rectangle {
+    in-out property <string> selected-folder: "";
+    in-out property <[FileRowData]> file-list: [];
+    in-out property <string> status-text: "Ready";
+    in-out property <int> total-files: 0;
+    in-out property <string> total-size: "0 B";
+    in-out property <bool> scanning: false;
+    in-out property <bool> extracting: false;
+    in-out property <int> selected-row: -1;
+
+    callback browse-folder();
+    callback start-scan();
+    callback start-extraction();
+    callback sort-by-column(int);
+
+    background: Colors.background;
+
+    VerticalBox {
+        padding: 24px;
+        spacing: 16px;
+
+        // Title
+        Text {
+            text: "BA2 Extraction";
+            font-size: Typography.title-size;
+            font-weight: 600;
+            color: Colors.text-primary;
+        }
+
+        // Folder selection area
+        Rectangle {
+            height: 80px;
+            background: Colors.surface;
+            border-radius: 8px;
+
+            VerticalBox {
+                padding: 16px;
+                spacing: 8px;
+
+                Text {
+                    text: "Select Folder to Scan";
+                    font-size: Typography.body-size;
+                    font-weight: 600;
+                    color: Colors.text-primary;
+                }
+
+                HorizontalBox {
+                    spacing: 8px;
+
+                    // Folder path display
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        height: 32px;
+                        background: Colors.background;
+                        border-radius: 4px;
+
+                        Text {
+                            text: selected-folder == "" ? "No folder selected" : selected-folder;
+                            font-size: Typography.body-size;
+                            color: selected-folder == "" ? Colors.text-secondary : Colors.text-primary;
+                            vertical-alignment: center;
+                            horizontal-alignment: left;
+                            x: 12px;
+                            overflow: elide;
+                        }
+                    }
+
+                    // Browse button
+                    FluentButton {
+                        text: "Browse...";
+                        width: 100px;
+                        enabled: !scanning && !extracting;
+                        clicked => { browse-folder(); }
+                    }
+
+                    // Scan button
+                    FluentButton {
+                        text: "Scan";
+                        width: 80px;
+                        primary: true;
+                        enabled: selected-folder != "" && !scanning && !extracting;
+                        clicked => { start-scan(); }
+                    }
+                }
+            }
+        }
+
+        // File preview table
+        Rectangle {
+            vertical-stretch: 1;
+            background: Colors.surface;
+            border-radius: 8px;
+
+            VerticalBox {
+                spacing: 0;
+
+                // Table header
+                Rectangle {
+                    height: 40px;
+                    background: Colors.surface;
+
+                    // Bottom border
+                    Rectangle {
+                        y: parent.height - 1px;
+                        height: 1px;
+                        background: Colors.border;
+                    }
+
+                    HorizontalBox {
+                        spacing: 0;
+
+                        TableHeaderCell {
+                            width: 35%;
+                            text: "File Name";
+                            column-index: 0;
+                            clicked(idx) => { sort-by-column(idx); }
+                        }
+
+                        TableHeaderCell {
+                            width: 20%;
+                            text: "File Size";
+                            column-index: 1;
+                            clicked(idx) => { sort-by-column(idx); }
+                        }
+
+                        TableHeaderCell {
+                            width: 15%;
+                            text: "# Files";
+                            column-index: 2;
+                            clicked(idx) => { sort-by-column(idx); }
+                        }
+
+                        TableHeaderCell {
+                            width: 30%;
+                            text: "Mod Folder";
+                            column-index: 3;
+                            clicked(idx) => { sort-by-column(idx); }
+                        }
+                    }
+                }
+
+                // Table rows
+                ScrollView {
+                    vertical-stretch: 1;
+
+                    VerticalLayout {
+                        spacing: 0;
+
+                        for row-data[idx] in file-list: FileTableRow {
+                            row-data: row-data;
+                            selected: idx == selected-row;
+                            clicked => {
+                                selected-row = idx;
+                            }
+                        }
+
+                        // Empty state
+                        if file-list.length == 0: Rectangle {
+                            height: 200px;
+
+                            Text {
+                                text: scanning ? "Scanning..." : "No files found. Select a folder and click Scan.";
+                                font-size: Typography.body-size;
+                                color: Colors.text-secondary;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Status and actions area
+        Rectangle {
+            height: 80px;
+            background: Colors.surface;
+            border-radius: 8px;
+
+            HorizontalBox {
+                padding: 16px;
+                spacing: 16px;
+
+                // Status info
+                VerticalBox {
+                    horizontal-stretch: 1;
+                    spacing: 4px;
+
+                    Text {
+                        text: status-text;
+                        font-size: Typography.body-size;
+                        font-weight: 600;
+                        color: Colors.text-primary;
+                    }
+
+                    HorizontalBox {
+                        spacing: 16px;
+
+                        Text {
+                            text: "Total Files: " + total-files;
+                            font-size: Typography.caption-size;
+                            color: Colors.text-secondary;
+                        }
+
+                        Text {
+                            text: "Total Size: " + total-size;
+                            font-size: Typography.caption-size;
+                            color: Colors.text-secondary;
+                        }
+                    }
+                }
+
+                // Extract button
+                FluentButton {
+                    text: extracting ? "Extracting..." : "Start Extraction";
+                    width: 150px;
+                    primary: true;
+                    enabled: file-list.length > 0 && !scanning && !extracting;
+                    clicked => { start-extraction(); }
+                }
+            }
+        }
+    }
+}
+
+// Check Files Screen (placeholder)
+component CheckFilesScreen inherits Rectangle {
+    background: Colors.background;
+
+    VerticalBox {
+        padding: 24px;
+        spacing: 16px;
+
+        Text {
+            text: "Check Files Screen";
+            font-size: Typography.title-size;
+            font-weight: 600;
+            color: Colors.text-primary;
+        }
+
+        Text {
+            text: "This screen will allow you to validate BA2 files for corruption.";
+            font-size: Typography.body-size;
+            color: Colors.text-secondary;
+            wrap: word-wrap;
+        }
+
+        Text {
+            text: "Implementation coming in Phase 2.1";
+            font-size: Typography.caption-size;
+            color: Colors.text-secondary;
+        }
+    }
+}
+
+// Settings Screen (placeholder)
+component SettingsScreen inherits Rectangle {
+    background: Colors.background;
+
+    VerticalBox {
+        padding: 24px;
+        spacing: 16px;
+
+        Text {
+            text: "Settings Screen";
+            font-size: Typography.title-size;
+            font-weight: 600;
+            color: Colors.text-primary;
+        }
+
+        Text {
+            text: "This screen will allow you to configure application settings.";
+            font-size: Typography.body-size;
+            color: Colors.text-secondary;
+            wrap: word-wrap;
+        }
+
+        Text {
+            text: "Implementation coming in Phase 2.2";
+            font-size: Typography.caption-size;
+            color: Colors.text-secondary;
+        }
+    }
+}
+
+// Main Window
 export component MainWindow inherits Window {
     title: "Unpackrr - BA2 Batch Unpacker";
     preferred-width: 1000px;
     preferred-height: 700px;
-    min-width: 1000px;
-    min-height: 700px;
+    min-width: 800px;
+    min-height: 500px;
+    background: Colors.background;
 
-    background: #f3f3f3; // Light theme background
+    // Navigation state
+    in-out property <int> current-screen: 0;
+    in-out property <bool> dark-mode <=> Colors.dark-mode;
 
-    // Placeholder - will be implemented in Phase 1.7
-    Text {
-        text: "Unpackrr-rs - Initializing...";
-        font-size: 24px;
-        color: #000;
-        horizontal-alignment: center;
-        vertical-alignment: center;
+    // Extraction screen state (exposed for Rust callbacks)
+    in-out property <string> selected-folder: "";
+    in-out property <[FileRowData]> file-list: [];
+    in-out property <string> status-text: "Ready";
+    in-out property <int> total-files: 0;
+    in-out property <string> total-size: "0 B";
+    in-out property <bool> scanning: false;
+    in-out property <bool> extracting: false;
+    in-out property <int> selected-row: -1;
+
+    // Extraction screen callbacks (exposed for Rust)
+    callback browse-folder();
+    callback start-scan();
+    callback start-extraction();
+    callback sort-by-column(int);
+
+    HorizontalBox {
+        spacing: 0;
+
+        // Navigation sidebar
+        sidebar := NavigationSidebar {
+            selected-index: current-screen;
+            navigation-changed(index) => {
+                current-screen = index;
+            }
+        }
+
+        // Main content area
+        content := Rectangle {
+            background: Colors.background;
+
+            // Show appropriate screen based on current-screen
+            if current-screen == 0: extraction-screen := ExtractionScreen {
+                width: 100%;
+                height: 100%;
+                selected-folder <=> root.selected-folder;
+                file-list <=> root.file-list;
+                status-text <=> root.status-text;
+                total-files <=> root.total-files;
+                total-size <=> root.total-size;
+                scanning <=> root.scanning;
+                extracting <=> root.extracting;
+                selected-row <=> root.selected-row;
+                browse-folder => { root.browse-folder(); }
+                start-scan => { root.start-scan(); }
+                start-extraction => { root.start-extraction(); }
+                sort-by-column(col) => { root.sort-by-column(col); }
+            }
+
+            if current-screen == 1: CheckFilesScreen {
+                width: 100%;
+                height: 100%;
+            }
+
+            if current-screen == 2: SettingsScreen {
+                width: 100%;
+                height: 100%;
+            }
+        }
     }
 }
