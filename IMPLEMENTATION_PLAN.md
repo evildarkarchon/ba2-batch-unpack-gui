@@ -37,9 +37,10 @@ The port aims to achieve:
 
 **Priority**: Critical
 **Estimated Effort**: 1-2 days
+**Status**: ✅ COMPLETE
 
 - [x] Initialize Rust project structure in `unpackrr-rs/`
-- [ ] Configure `Cargo.toml` with essential dependencies:
+- [x] Configure `Cargo.toml` with essential dependencies:
   - `slint` (GUI framework)
   - `async-compat` (Slint+Tokio bridge)
   - `tokio` (async runtime)
@@ -48,9 +49,10 @@ The port aims to achieve:
   - `regex` (pattern matching)
   - `directories` (config paths)
   - `tracing`, `tracing-subscriber` (logging)
-- [ ] Set up build configuration for Slint
-- [ ] Configure Clippy lints (as per CLAUDE.md)
-- [ ] Create initial module structure:
+  - Additional: `dunce`, `rayon`, `memmap2`, `toml`, `humansize`
+- [x] Set up build configuration for Slint
+- [x] Configure Clippy lints (as per CLAUDE.md)
+- [x] Create initial module structure:
   ```
   src/
     ├── main.rs
@@ -63,8 +65,10 @@ The port aims to achieve:
   ```
 
 **Deliverables**:
-- Compiling Rust project skeleton
-- CI-ready configuration (fmt, clippy, test)
+- ✅ Rust project skeleton with all dependencies
+- ✅ CI-ready configuration (fmt, clippy, test)
+- ✅ Build configuration for Slint
+- ✅ Complete module structure
 
 ---
 
@@ -72,20 +76,23 @@ The port aims to achieve:
 
 **Priority**: Critical
 **Estimated Effort**: 1 day
+**Status**: ✅ COMPLETE
 
-- [ ] Create `src/error.rs` with custom error types
-- [ ] Define error categories:
+- [x] Create `src/error.rs` with custom error types
+- [x] Define error categories:
   - `ConfigError` - Configuration issues
   - `BA2Error` - BA2 format/parsing errors
-  - `IOError` - File system operations
+  - `IOError` - File system operations (via `std::io::Error`)
   - `ValidationError` - Input validation
-- [ ] Implement `thiserror` derives for custom errors
-- [ ] Use `anyhow::Context` for error propagation
-- [ ] Add error display helpers for user-facing messages
+- [x] Implement `thiserror` derives for custom errors
+- [x] Use `anyhow::Context` for error propagation
+- [x] Add error display helpers for user-facing messages
 
 **Deliverables**:
-- Comprehensive error type system
-- Clear error messages for end users
+- ✅ Comprehensive error type system with `thiserror`
+- ✅ Clear error messages for end users
+- ✅ `user_message()` helper for UI display
+- ✅ Error checking utilities (e.g., `is_ba2_corrupted()`)
 
 ---
 
@@ -93,11 +100,12 @@ The port aims to achieve:
 
 **Priority**: Critical
 **Estimated Effort**: 2-3 days
+**Status**: 🔄 IN PROGRESS
 
 **Files to Port**: `src/misc/Config.py`
 
-- [ ] Create `src/config/mod.rs` structure
-- [ ] Define configuration structs with `serde` derives:
+- [x] Create `src/config/mod.rs` structure
+- [x] Define configuration structs with `serde` derives:
   ```rust
   struct AppConfig {
       extraction: ExtractionConfig,
@@ -106,28 +114,28 @@ The port aims to achieve:
       update: UpdateConfig,
   }
   ```
-- [ ] Implement configuration sections:
+- [x] Implement configuration sections:
   - `ExtractionConfig`: postfixes, ignored files, auto backup, etc.
   - `AppearanceConfig`: language, theme mode, theme color
   - `AdvancedConfig`: debug mode, paths, external tools
   - `UpdateConfig`: auto-check settings
 - [ ] Configuration file handling:
-  - [ ] Default config generation
+  - [x] Default config generation
   - [ ] Load from `config/config.json`
   - [ ] Save on changes
   - [ ] Validation on load
 - [ ] Regex pattern compilation and caching
 - [ ] Path resolution (relative/absolute, Windows-safe)
 - [ ] Unit tests for:
-  - Default config generation
-  - Serialization/deserialization
-  - Path validation
-  - Regex compilation
+  - [x] Default config generation
+  - [x] Serialization/deserialization
+  - [ ] Path validation
+  - [ ] Regex compilation
 
 **Deliverables**:
-- Complete configuration management system
-- Validated JSON persistence
-- Pre-compiled regex patterns
+- ⏳ Complete configuration management system (structs defined, I/O pending)
+- ⏳ Validated JSON persistence (pending implementation)
+- ⏳ Pre-compiled regex patterns (pending implementation)
 
 ---
 
