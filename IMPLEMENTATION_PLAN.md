@@ -100,7 +100,7 @@ The port aims to achieve:
 
 **Priority**: Critical
 **Estimated Effort**: 2-3 days
-**Status**: 🔄 IN PROGRESS
+**Status**: ✅ COMPLETE
 
 **Files to Port**: `src/misc/Config.py`
 
@@ -109,6 +109,7 @@ The port aims to achieve:
   ```rust
   struct AppConfig {
       extraction: ExtractionConfig,
+      saved: SavedConfig,
       appearance: AppearanceConfig,
       advanced: AdvancedConfig,
       update: UpdateConfig,
@@ -116,26 +117,37 @@ The port aims to achieve:
   ```
 - [x] Implement configuration sections:
   - `ExtractionConfig`: postfixes, ignored files, auto backup, etc.
+  - `SavedConfig`: last used directory, threshold
   - `AppearanceConfig`: language, theme mode, theme color
-  - `AdvancedConfig`: debug mode, paths, external tools
+  - `AdvancedConfig`: debug mode, log level, paths, external tools, first launch
   - `UpdateConfig`: auto-check settings
-- [ ] Configuration file handling:
+- [x] Configuration file handling:
   - [x] Default config generation
-  - [ ] Load from `config/config.json`
-  - [ ] Save on changes
-  - [ ] Validation on load
-- [ ] Regex pattern compilation and caching
-- [ ] Path resolution (relative/absolute, Windows-safe)
-- [ ] Unit tests for:
+  - [x] Load from `config/config.json`
+  - [x] Save with pretty JSON formatting
+  - [x] Validation on load and save
+  - [x] Auto-create config directory
+  - [x] Auto-create default config if missing
+- [x] Regex pattern compilation and caching via `get_ignored_patterns()`
+- [x] Path resolution (relative/absolute, Windows-safe via `dunce`)
+- [x] Helper utilities:
+  - [x] `resolve_path()` - Windows UNC path support
+  - [x] `looks_like_regex()` - Heuristic for regex detection
+  - [x] `should_ignore_file()` - File filtering with substring and regex
+- [x] Unit tests for:
   - [x] Default config generation
   - [x] Serialization/deserialization
-  - [ ] Path validation
-  - [ ] Regex compilation
+  - [x] Path validation (postfix .ba2 check)
+  - [x] Regex compilation and validation
+  - [x] File ignoring (substring and regex)
+  - [x] LogLevel enum serialization
 
 **Deliverables**:
-- ⏳ Complete configuration management system (structs defined, I/O pending)
-- ⏳ Validated JSON persistence (pending implementation)
-- ⏳ Pre-compiled regex patterns (pending implementation)
+- ✅ Complete configuration management system with full I/O
+- ✅ Validated JSON persistence with pretty formatting
+- ✅ Regex pattern compilation with validation
+- ✅ Windows-safe path resolution
+- ✅ Comprehensive unit tests (10 tests)
 
 ---
 

@@ -1,7 +1,9 @@
 ### User Config
 # Examples
 examples/
-config/
+# Only ignore root-level config directory (runtime config files)
+# Don't ignore src/config/ directories in source code
+/config/
 bin/
 build/
 dist/
