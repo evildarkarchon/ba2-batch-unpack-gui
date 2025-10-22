@@ -1,8 +1,6 @@
 import pathlib
+from typing import TYPE_CHECKING, Any, cast
 
-from misc.Config import CREDITS_URL, FEEDBACK_URL, KOFI_URL, cfg
-from misc.Utilities import get_default_windows_app, resource_path
-from prefab.CustomIcon import CustomIcon
 from PySide6.QtCore import Qt, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QApplication, QLabel, QWidget
@@ -22,10 +20,16 @@ from qfluentwidgets import (
 )
 from qfluentwidgets import FluentIcon as Fi
 
+from misc.Config import CREDITS_URL, FEEDBACK_URL, KOFI_URL, cfg
+from misc.Utilities import get_default_windows_app, resource_path
+from prefab.CustomIcon import CustomIcon
 from view.setting_card.AboutSettingCard import AboutSettingCard
 from view.setting_card.IgnoredSettingCard import IgnoredSettingCard
 from view.setting_card.InputSettingCard import InputSettingCard
 from view.setting_card.PostfixSettingCard import PostfixSettingCard
+
+if TYPE_CHECKING:
+    from MainWindow import Unpackrr
 
 
 class SettingScreen(ScrollArea):
@@ -204,7 +208,7 @@ class SettingScreen(ScrollArea):
         self.__init_layout()
         self.__connect_signal_to_slot()
 
-    def __init_layout(self):
+    def __init_layout(self) -> None:
         self.setting_label.move(60, 63)
 
         self.extraction_group.addSettingCard(self.postfixes_card)
@@ -278,10 +282,11 @@ class SettingScreen(ScrollArea):
         setThemeColor(color)
 
     def __on_debug_changed(self) -> None:
+        app = cast("Unpackrr", QApplication.instance())
         if cfg.get(cfg.show_debug):
-            QApplication.instance().log_view.show()
+            app.log_view.show()
         else:
-            QApplication.instance().log_view.hide()
+            app.log_view.hide()
 
     def __connect_signal_to_slot(self) -> None:
         """connect signal to slot"""
@@ -295,4 +300,4 @@ class SettingScreen(ScrollArea):
         # self.aboutCard.clicked.connect(self.checkUpdateSig)
         self.about_setting_card.feedback_button.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(FEEDBACK_URL)))
 
-        QApplication.instance().ignore_changed.connect(self.notify_ignore)
+        cast("Unpackrr", QApplication.instance()).ignore_changed.connect(self.notify_ignore)

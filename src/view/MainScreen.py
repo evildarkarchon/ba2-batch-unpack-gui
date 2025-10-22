@@ -1,17 +1,9 @@
-import os.path
 import pathlib
 import subprocess
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 from humanize import naturalsize
-from misc.BsaExtractor import BsaExtractor
-from misc.BsaProcessor import BsaProcessor
-from misc.Config import cfg
-from misc.Utilities import check_latest_version, parse_size
-from model.PreviewTableModel import FileEntry, PreviewTableModel
-from prefab.InfoBar import show_result_toast, show_update_available
-from prefab.MessageBox import auto_not_available
-from PySide6.QtCore import QEvent, QModelIndex, QPoint, QSortFilterProxyModel, Qt
+from PySide6.QtCore import QModelIndex, QPoint, QSortFilterProxyModel, Qt
 from PySide6.QtGui import QDragEnterEvent, QDragLeaveEvent, QDropEvent, QResizeEvent
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -38,6 +30,17 @@ from qfluentwidgets import (
     ToolTipFilter,
 )
 from qfluentwidgets import FluentIcon as Fi
+
+from misc.BsaExtractor import BsaExtractor
+from misc.BsaProcessor import BsaProcessor
+from misc.Config import cfg
+from misc.Utilities import check_latest_version, parse_size
+from model.PreviewTableModel import FileEntry, PreviewTableModel
+from prefab.InfoBar import show_result_toast, show_update_available
+from prefab.MessageBox import auto_not_available
+
+if TYPE_CHECKING:
+    from MainWindow import Unpackrr
 
 
 class MainScreen(QFrame):
@@ -78,6 +81,7 @@ class MainScreen(QFrame):
 
         # File table
         self.preview_table: TableView = TableView(self)
+        self.proxy_model: QSortFilterProxyModel = QSortFilterProxyModel()
 
         # Hint on top of the preview table
         self.preview_hint_layout: QBoxLayout = QBoxLayout(QBoxLayout.Direction.LeftToRight, self.preview_table)
@@ -192,10 +196,9 @@ class MainScreen(QFrame):
         self.layout.addWidget(self.preview_table)
 
         # Proxy model used by the table
-        proxy_model = QSortFilterProxyModel()
-        proxy_model.setSortRole(Qt.ItemDataRole.UserRole)
-        proxy_model.setSortCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
-        self.preview_table.setModel(proxy_model)
+        self.proxy_model.setSortRole(Qt.ItemDataRole.UserRole)
+        self.proxy_model.setSortCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        self.preview_table.setModel(self.proxy_model)
         self.preview_table.horizontalHeader().setStretchLastSection(True)
         # Sorting
         self.preview_table.horizontalHeader().setSortIndicator(1, Qt.SortOrder.AscendingOrder)
@@ -255,9 +258,9 @@ class MainScreen(QFrame):
 
     def __refresh_table(self, data: list[FileEntry]) -> None:
         model: PreviewTableModel = PreviewTableModel(data)
-        self.preview_table.model().setSourceModel(model)
+        self.proxy_model.setSourceModel(model)
 
-        for i in range(self.preview_table.model().rowCount()):
+        for i in range(self.proxy_model.rowCount()):
             self.preview_table.setRowHidden(i, False)
 
         self.folder_button.setDisabled(False)
@@ -271,7 +274,7 @@ class MainScreen(QFrame):
             temp.update(self.failed)
             cfg.set(cfg.ignored, list(temp))
             # Update the ignored items accordingly
-            QApplication.instance().ignore_changed.emit()
+            cast("Unpackrr", QApplication.instance()).ignore_changed.emit()
 
     def __done_loading_ba2(self) -> None:
         if self.threshold_button.isChecked():
@@ -306,7 +309,7 @@ class MainScreen(QFrame):
         self.preview_table.setColumnWidth(2, num_col_width)
 
     # Resize the columns of the table automatically on resize
-    def resizeEvent(self, event: QResizeEvent) -> None:
+    def resizeEvent(self, event: QResizeEvent) -> None:  # noqa: ARG002
         self.__adjust_column_size()
 
     def __threshold_changed(self) -> None:
@@ -322,8 +325,9 @@ class MainScreen(QFrame):
         if not item_idx.isValid():
             return
 
-        raw_idx: QModelIndex = self.preview_table.model().mapToSource(item_idx)
-        raw_data: list[FileEntry] = self.preview_table.model().sourceModel().raw_data()
+        raw_idx: QModelIndex = self.proxy_model.mapToSource(item_idx)
+        source_model: PreviewTableModel = cast("PreviewTableModel", self.proxy_model.sourceModel())
+        raw_data: list[FileEntry] = source_model.raw_data()
         data: FileEntry = raw_data[raw_idx.row()]
         self.__open_ba2_ext(data.full_path)
 
@@ -335,8 +339,9 @@ class MainScreen(QFrame):
         menu: RoundMenu = RoundMenu()
 
         # Add actions one by one, Action inherits from QAction and accepts icons of type FluentIconBase
-        raw_idx: QModelIndex = self.preview_table.model().mapToSource(item_idx)
-        raw_data: list[FileEntry] = self.preview_table.model().sourceModel().raw_data()
+        raw_idx: QModelIndex = self.proxy_model.mapToSource(item_idx)
+        source_model: PreviewTableModel = cast("PreviewTableModel", self.proxy_model.sourceModel())
+        raw_data: list[FileEntry] = source_model.raw_data()
         data: FileEntry = raw_data[raw_idx.row()]
 
         menu.addAction(Action(Fi.REMOVE_FROM, self.tr("Ignore"), triggered=lambda: self.__ignore_file(data.full_path, raw_idx.row())))
@@ -345,7 +350,7 @@ class MainScreen(QFrame):
         menu.exec_(self.preview_table.viewport().mapToGlobal(pos))
 
     def __check_start_ready(self) -> None:
-        table_nonempty: bool = self.preview_table.model().rowCount() > 0
+        table_nonempty: bool = self.proxy_model.rowCount() > 0
         self.start_button.setEnabled(self.table_ready and table_nonempty)
 
     def __determine_threshold(self) -> None:
@@ -369,12 +374,13 @@ class MainScreen(QFrame):
 
     def __ignore_file(self, file_name: str, idx: int) -> None:
         temp: set[Any] = set(cfg.get(cfg.ignored))
-        temp.add(os.path.abspath(file_name))
+        temp.add(pathlib.Path(file_name).resolve())
         cfg.set(cfg.ignored, list(temp))
         # Update the ignored items accordingly
-        QApplication.instance().ignore_changed.emit()
+        cast("Unpackrr", QApplication.instance()).ignore_changed.emit()
 
-        self.preview_table.model().sourceModel().removeRow(idx)
+        source_model: PreviewTableModel = cast("PreviewTableModel", self.proxy_model.sourceModel())
+        source_model.removeRow(idx)
         self.__update_preview_text()
 
     def __open_ba2_ext(self, file_path: str) -> None:
@@ -383,14 +389,15 @@ class MainScreen(QFrame):
                 cfg.get(cfg.ext_ba2_exe),
                 file_path,
             ]
-            subprocess.run(args)
+            subprocess.run(args, check=False)
 
     def __update_preview_text(self) -> None:
-        if self.preview_table.model().rowCount() > 0:
-            curr_data: list[FileEntry] = self.preview_table.model().sourceModel().files
+        if self.proxy_model.rowCount() > 0:
+            source_model: PreviewTableModel = cast("PreviewTableModel", self.proxy_model.sourceModel())
+            curr_data: list[FileEntry] = source_model.files
             self.preview_text.setText(
                 self.tr("Total files: {0}, total size: {1}, extracted file count: {2}").format(
-                    len(curr_data), naturalsize(sum([x.file_size for x in curr_data])), sum([x.num_files for x in curr_data])
+                    len(curr_data), naturalsize(sum(x.file_size for x in curr_data)), sum(x.num_files for x in curr_data)
                 ),
             )
 
@@ -408,7 +415,7 @@ class MainScreen(QFrame):
         else:
             event.ignore()
 
-    def dragLeaveEvent(self, event: QDragLeaveEvent) -> None:
+    def dragLeaveEvent(self, event: QDragLeaveEvent) -> None:  # noqa: ARG002
         self.preview_hint.setText(self.tr("Select a folder to get started"))
 
     def dropEvent(self, event: QDropEvent) -> None:

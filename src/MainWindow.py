@@ -1,22 +1,26 @@
 import ctypes
-import os
+import pathlib
 import sys
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any
 
-from misc.Config import cfg
-from misc.Utilities import resource_path
-from prefab.CustomIcon import CustomIcon
 from PySide6.QtCore import QLocale, QRect, QTranslator, Signal
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 from qfluentwidgets import FluentIcon as Fi
 from qfluentwidgets import FluentTranslator, NavigationItemPosition, SplashScreen, SplitFluentWindow, Theme
+
+from misc.Config import cfg
+from misc.Utilities import resource_path
+from prefab.CustomIcon import CustomIcon
 from view.CheckFileScreen import CheckFileScreen
 from view.LogView import LogLevel, LogView
 from view.MainScreen import MainScreen
 from view.SettingScreen import SettingScreen
 
-basedir: str = os.path.dirname(__file__)
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+basedir: str = str(pathlib.Path(__file__).parent)
 
 
 class MainWindow(SplitFluentWindow):
@@ -59,7 +63,7 @@ class MainWindow(SplitFluentWindow):
         self.resize(1000, 700)
 
 
-# Hack to install a "global" signal/slot
+# Hack to install a "global" signal/slot  # noqa: FIX004
 class Unpackrr(QApplication):
     ignore_changed = Signal()
     theme_changed = Signal()
