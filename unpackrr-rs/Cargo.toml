@@ -3,5 +3,67 @@ name = "unpackrr"
 version = "0.1.0"
 edition = "2024"
 license = "GPL-3.0"
+authors = ["evildarkarchon"]
+description = "High-performance BA2 batch unpacker with Fluent Design UI"
+repository = "https://github.com/evildarkarchon/ba2-batch-unpack-gui"
+
+# Optimize for size and performance in release builds
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+
+# Enable some optimizations in dev for better testing experience
+[profile.dev]
+opt-level = 1
 
 [dependencies]
+# GUI Framework
+slint = "1.9"
+
+# Async compatibility (CRITICAL: Slint + Tokio bridge)
+async-compat = "0.2"
+
+# Async runtime for file operations
+tokio = { version = "1.41", features = ["full"] }
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+
+# Pattern matching
+regex = "1.11"
+
+# Path and directory handling
+directories = "5.0"
+dunce = "1.0"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+
+# Parallel processing
+rayon = "1.10"
+
+# Memory mapping for large files
+memmap2 = "0.9"
+
+# Size formatting
+humansize = "2.1"
+
+[build-dependencies]
+slint-build = "1.9"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+# Allow some pedantic lints that conflict with readability
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
