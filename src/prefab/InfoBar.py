@@ -13,6 +13,7 @@ OperationType = Literal["scan", "check", "extract"]
 @dataclass
 class MessageConfig:
     """Configuration for different operation types."""
+
     verb: str
     fail_title: str
     success_title: str
@@ -67,9 +68,7 @@ def _build_fail_message(config: MessageConfig, num_fail: int, num_success: int, 
     auto_ignore = cfg.get(cfg.ignore_bad_files)
 
     # Base message
-    message = QApplication.translate("InfoBar", "Finished {0} ba2. Could not open {1} files").format(
-        config.verb, num_fail
-    )
+    message = QApplication.translate("InfoBar", "Finished {0} ba2. Could not open {1} files").format(config.verb, num_fail)
 
     # Add suffix based on operation type and settings
     if op_type == "check":
@@ -142,20 +141,20 @@ def show_result_toast(results: list, _type: OperationType = "scan") -> None:
         )
 
 
-def show_update_available(parent, new_ver: str) -> None:
+def show_update_available(parent, new_ver: str) -> None:  # noqa: ANN001
     """Show an info bar notifying the user of an available update."""
     if "v" in new_ver:
         new_ver = new_ver[1:]
     update_info = InfoBar(
         icon=InfoBarIcon.INFORMATION,
         title=QApplication.translate("InfoBar", "Update available"),
-        content=QApplication.translate("InfoBar",
-                                       "A new version of Unpackrr is available.\n"
-                                       "Current: {0}, latest: {1}").format(VERSION, new_ver),
+        content=QApplication.translate("InfoBar", "A new version of Unpackrr is available.\nCurrent: {0}, latest: {1}").format(
+            VERSION, new_ver
+        ),
         duration=-1,
         position=InfoBarPosition.BOTTOM,
         parent=parent,
     )
-    download_button = HyperlinkButton(NEXUS_URL+"?tab=files", QApplication.translate("InfoBar", "Download"))
+    download_button = HyperlinkButton(NEXUS_URL + "?tab=files", QApplication.translate("InfoBar", "Download"))
     update_info.addWidget(download_button)
     update_info.show()

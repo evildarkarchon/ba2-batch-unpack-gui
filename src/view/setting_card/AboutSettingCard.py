@@ -29,8 +29,7 @@ class AboutSettingCard(ExpandGroupSettingCard):
         # self.github_link.setText(self.tr('Source code'))
 
         # SWC
-        self.swc_label = BodyLabel(self.tr("Organically & locally produced by Southwest Codeworks\n"
-                                           "Made with ❤️ in Arizona"), self)
+        self.swc_label = BodyLabel(self.tr("Organically & locally produced by Southwest Codeworks\nMade with ❤️ in Arizona"), self)
         self.swc_link = HyperlinkLabel(QUrl(SWC_URL), self.tr("Project page"), self)
         # self.swc_link.setText(self.tr('Project page'))
 

@@ -20,10 +20,11 @@ from qfluentwidgets import FluentIcon as Fi
 
 
 class PostfixItem(QWidget):
-    """ Postfix item """
+    """Postfix item"""
+
     removed = Signal(QWidget)
 
-    def __init__(self, postfix: str, parent=None):
+    def __init__(self, postfix: str, parent=None) -> None:  # noqa: ANN001
         super().__init__(parent=parent)
         self.postfix = postfix
         self.item_layout = QHBoxLayout(self)
@@ -42,17 +43,15 @@ class PostfixItem(QWidget):
         self.item_layout.addWidget(self.remove_button, 0, Qt.AlignmentFlag.AlignRight)
         self.item_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
-        self.remove_button.clicked.connect(
-            lambda: self.removed.emit(self))
+        self.remove_button.clicked.connect(lambda: self.removed.emit(self))
 
 
 class PostfixSettingCard(ExpandSettingCard):
-    """ Postfix list setting card """
+    """Postfix list setting card"""
 
     postfix_changed = Signal(list)
 
-    def __init__(self, config_item: ConfigItem, icon: str | QIcon | FluentIconBase, title: str,
-                 content: str | None = None, parent=None):
+    def __init__(self, config_item: ConfigItem, icon: str | QIcon | FluentIconBase, title: str, content: str | None = None, parent=None) -> None:  # noqa: ANN001
         """
         Parameters
         ----------
@@ -64,6 +63,9 @@ class PostfixSettingCard(ExpandSettingCard):
 
         icon: str | QIcon | FluentIconBase
             the icon to be drawn
+
+        title: str
+            the title of card
 
         content: str
             the content of card
@@ -82,7 +84,7 @@ class PostfixSettingCard(ExpandSettingCard):
         self.postfixes_cards = []
         self.__initWidget()
 
-    def __initWidget(self):
+    def __initWidget(self) -> None:
         self.setExpand(True)
 
         # initialize layout
@@ -102,7 +104,7 @@ class PostfixSettingCard(ExpandSettingCard):
         self.add_postfix_button.clicked.connect(self.__add_postfix)
         self.postfix_reset_button.clicked.connect(self.__reset_postfix)
 
-    def __add_postfix(self):
+    def __add_postfix(self) -> None:
         # Validate input
         user_postfix = self.postfix_input.text()
         if len(user_postfix) < 4 or user_postfix[-4:] != ".ba2":
@@ -114,8 +116,8 @@ class PostfixSettingCard(ExpandSettingCard):
         qconfig.set(self.config_item, self.postfixes)
         self.postfix_changed.emit(self.postfixes)
 
-    def __add_postfix_item(self, postfix: str):
-        """ add postfix item """
+    def __add_postfix_item(self, postfix: str) -> None:
+        """add postfix item"""
         item = PostfixItem(postfix, self.view)
         item.removed.connect(lambda: self.__remove_postfix(item))
         self.viewLayout.addWidget(item)
@@ -123,8 +125,8 @@ class PostfixSettingCard(ExpandSettingCard):
         self.postfixes_cards.append(item)
         self._adjustViewSize()
 
-    def __remove_postfix(self, item: PostfixItem):
-        """ remove folder """
+    def __remove_postfix(self, item: PostfixItem) -> None:
+        """remove folder"""
         if item.postfix not in self.postfixes:
             return
 
@@ -136,7 +138,7 @@ class PostfixSettingCard(ExpandSettingCard):
         self.postfix_changed.emit(self.postfixes)
         qconfig.set(self.config_item, self.postfixes)
 
-    def __reset_postfix(self):
+    def __reset_postfix(self) -> None:
         for card in self.postfixes_cards[:]:
             self.__remove_postfix(card)
         for postfix in self.config_item.defaultValue:
@@ -145,7 +147,7 @@ class PostfixSettingCard(ExpandSettingCard):
             qconfig.set(self.config_item, self.postfixes)
             self.postfix_changed.emit(self.postfixes)
 
-    def __show_ba2_failed_tip(self):
+    def __show_ba2_failed_tip(self) -> None:
         TeachingTip.create(
             target=self.postfix_input,
             icon=InfoBarIcon.ERROR,
@@ -157,7 +159,7 @@ class PostfixSettingCard(ExpandSettingCard):
             parent=self,
         )
 
-    def __show_ba2_duplicate_tip(self):
+    def __show_ba2_duplicate_tip(self) -> None:
         TeachingTip.create(
             target=self.postfix_input,
             icon=InfoBarIcon.ERROR,

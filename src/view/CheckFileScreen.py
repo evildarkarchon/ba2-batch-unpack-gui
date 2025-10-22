@@ -1,9 +1,5 @@
-
 import pathlib
 
-from misc.BsaChecker import BsaChecker
-from misc.Config import cfg
-from prefab.InfoBar import show_result_toast
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QDragEnterEvent, QDragLeaveEvent, QDropEvent
 from PySide6.QtWidgets import QBoxLayout, QFileDialog, QFrame, QHBoxLayout, QVBoxLayout, QWidget
@@ -17,6 +13,10 @@ from qfluentwidgets import (
     ToolButton,
 )
 from qfluentwidgets import FluentIcon as Fi
+
+from misc.BsaChecker import BsaChecker
+from misc.Config import cfg
+from prefab.InfoBar import show_result_toast
 
 
 class CheckFileScreen(QFrame):
@@ -77,9 +77,13 @@ class CheckFileScreen(QFrame):
         self.folder_layout.addLayout(self.folder_layout_inner)
 
         # Deep scan
-        self.deep_scan_checkbox.setToolTip(self.tr("In addition to reading the content of the ba2 files,\n"
-                                                   "this will also extract the ba2 files to a temporary\n"
-                                                   "location to check for errors. Usually not necessary."))
+        self.deep_scan_checkbox.setToolTip(
+            self.tr(
+                "In addition to reading the content of the ba2 files,\n"
+                "this will also extract the ba2 files to a temporary\n"
+                "location to check for errors. Usually not necessary."
+            )
+        )
         self.deep_scan_layout.addWidget(self.deep_scan_title)
         self.deep_scan_layout.addWidget(self.deep_scan_checkbox)
 
@@ -167,9 +171,13 @@ class CheckFileScreen(QFrame):
         cfg.set(cfg.saved_dir, folder)
 
     def __open_folder(self) -> None:
-        self.folder_input.setText(QFileDialog.getExistingDirectory(self, self.tr("Open your Fallout 4 mod folder"),
-                                                                   options=QFileDialog.Option.ShowDirsOnly |
-                                                                           QFileDialog.Option.DontResolveSymlinks))
+        self.folder_input.setText(
+            QFileDialog.getExistingDirectory(
+                self,
+                self.tr("Open your Fallout 4 mod folder"),
+                options=QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks,
+            )
+        )
         self.__check_folder()
 
         # Drag and drop
@@ -181,7 +189,7 @@ class CheckFileScreen(QFrame):
         else:
             event.ignore()
 
-    def dragLeaveEvent(self, event: QDragLeaveEvent) -> None:
+    def dragLeaveEvent(self, event: QDragLeaveEvent) -> None:  # noqa: ARG002
         self.preview_hint.setText(self.tr("Select or drag 'n drop a folder here to get started"))
 
     def dropEvent(self, event: QDropEvent) -> None:

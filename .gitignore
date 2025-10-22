@@ -6,6 +6,12 @@ bin/
 build/
 dist/
 
+# Claude Code local settings
+.claude/
+
+# Binary executables at root
+BSArch.exe
+
 ### Qt template
 # C++ objects and libs
 *.slo

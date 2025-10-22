@@ -30,7 +30,6 @@ class Ba2ListValidator(ConfigValidator):
         return [postfix for postfix in value if len(postfix) >= 4 and postfix[-4:] == ".ba2"]
 
 
-
 class IntValidator(ConfigValidator):
     def validate(self, value: int) -> bool:
         return value > 0
@@ -68,8 +67,10 @@ class LogLevelSerializer(ConfigSerializer):
 class Config(QConfig):
     # Extraction
     postfixes = ConfigItem(
-        "Extraction", "Postfixes",
-        ["main.ba2", "materials.ba2", "misc.ba2", "scripts.ba2"], Ba2ListValidator(),
+        "Extraction",
+        "Postfixes",
+        ["main.ba2", "materials.ba2", "misc.ba2", "scripts.ba2"],
+        Ba2ListValidator(),
     )
     ignored = ConfigItem("Extraction", "IgnoredFiles", [])
     ignore_bad_files = ConfigItem("Extraction", "IgnoreBadFiles", True, BoolValidator())
@@ -80,9 +81,7 @@ class Config(QConfig):
     saved_threshold = ConfigItem("Saved", "Threshold", 0, IntValidator())
 
     # Appearance
-    language = OptionsConfigItem(
-        "Appearance", "Language", Language.AUTO, OptionsValidator(Language), LanguageSerializer(),
-        restart=True)
+    language = OptionsConfigItem("Appearance", "Language", Language.AUTO, OptionsValidator(Language), LanguageSerializer(), restart=True)
 
     # Advanced
     show_debug = ConfigItem("Advanced", "ShowDebug", False, BoolValidator())
@@ -95,8 +94,7 @@ class Config(QConfig):
     first_launch = ConfigItem("Advanced", "FirstLaunch", True, BoolValidator())
 
     # software update
-    check_update_at_start_up = ConfigItem(
-        "Update", "CheckUpdateAtStartUp", True, BoolValidator())
+    check_update_at_start_up = ConfigItem("Update", "CheckUpdateAtStartUp", True, BoolValidator())
 
 
 YEAR = 2024

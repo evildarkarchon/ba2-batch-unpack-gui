@@ -13,7 +13,17 @@ from prefab.InfoBar import show_result_toast, show_update_available
 from prefab.MessageBox import auto_not_available
 from PySide6.QtCore import QEvent, QModelIndex, QPoint, QSortFilterProxyModel, Qt
 from PySide6.QtGui import QDragEnterEvent, QDragLeaveEvent, QDropEvent, QResizeEvent
-from PySide6.QtWidgets import QAbstractItemView, QApplication, QBoxLayout, QFileDialog, QFrame, QHBoxLayout, QHeaderView, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QApplication,
+    QBoxLayout,
+    QFileDialog,
+    QFrame,
+    QHBoxLayout,
+    QHeaderView,
+    QVBoxLayout,
+    QWidget,
+)
 from qfluentwidgets import (
     Action,
     BodyLabel,
@@ -110,9 +120,9 @@ class MainScreen(QFrame):
 
         # Perform auto threshold calculation and disable user input box
         self.threshold_button.clicked.connect(self.__auto_toggled)
-        self.threshold_button.setToolTip(self.tr("Automatically attempts to determine a\n"
-                                                 "threshold so just enough ba2 are\n"
-                                                 "extracted to get under the ba2 limit"))
+        self.threshold_button.setToolTip(
+            self.tr("Automatically attempts to determine a\nthreshold so just enough ba2 are\nextracted to get under the ba2 limit")
+        )
         self.threshold_button.installEventFilter(ToolTipFilter(self.threshold_button))
 
         self.threshold_layout_inner.addWidget(self.threshold_input)
@@ -213,10 +223,14 @@ class MainScreen(QFrame):
             self.processor.start()
 
     def __open_folder(self) -> None:
-        self.folder_input.setText(QFileDialog.getExistingDirectory(self, self.tr("Open your Fallout 4 mod folder"),
-                                                                   dir=cfg.get(cfg.saved_dir),
-                                                                   options=QFileDialog.Option.ShowDirsOnly |
-                                                                           QFileDialog.Option.DontResolveSymlinks))
+        self.folder_input.setText(
+            QFileDialog.getExistingDirectory(
+                self,
+                self.tr("Open your Fallout 4 mod folder"),
+                dir=cfg.get(cfg.saved_dir),
+                options=QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks,
+            )
+        )
         self.__process_folder()
 
     def __extract_files(self) -> None:
@@ -325,10 +339,8 @@ class MainScreen(QFrame):
         raw_data: list[FileEntry] = self.preview_table.model().sourceModel().raw_data()
         data: FileEntry = raw_data[raw_idx.row()]
 
-        menu.addAction(Action(Fi.REMOVE_FROM, self.tr("Ignore"),
-                              triggered=lambda: self.__ignore_file(data.full_path, raw_idx.row())))
-        menu.addAction(Action(Fi.LINK, self.tr("Open"),
-                              triggered=lambda: self.__open_ba2_ext(data.full_path)))
+        menu.addAction(Action(Fi.REMOVE_FROM, self.tr("Ignore"), triggered=lambda: self.__ignore_file(data.full_path, raw_idx.row())))
+        menu.addAction(Action(Fi.LINK, self.tr("Open"), triggered=lambda: self.__open_ba2_ext(data.full_path)))
 
         menu.exec_(self.preview_table.viewport().mapToGlobal(pos))
 
@@ -378,8 +390,8 @@ class MainScreen(QFrame):
             curr_data: list[FileEntry] = self.preview_table.model().sourceModel().files
             self.preview_text.setText(
                 self.tr("Total files: {0}, total size: {1}, extracted file count: {2}").format(
-                    len(curr_data), naturalsize(sum([x.file_size for x in curr_data])),
-                    sum([x.num_files for x in curr_data])),
+                    len(curr_data), naturalsize(sum([x.file_size for x in curr_data])), sum([x.num_files for x in curr_data])
+                ),
             )
 
     def __check_update(self) -> None:

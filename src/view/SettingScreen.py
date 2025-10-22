@@ -44,22 +44,27 @@ class SettingScreen(ScrollArea):
 
         # extraction
         self.extraction_group: SettingCardGroup = SettingCardGroup(
-            self.tr("Extraction"), self.scroll_widget,
+            self.tr("Extraction"),
+            self.scroll_widget,
         )
         self.postfixes_card: PostfixSettingCard = PostfixSettingCard(
             cfg.postfixes,
             Fi.TAG,
             self.tr("Postfixes"),
-            self.tr('File postfixes to extract from. Example: "main.ba2" matches files like\n'
-                    '"xyzmod - Main.ba2" and "abcmod - main.BA2". Must end in ".ba2"'),
+            self.tr(
+                'File postfixes to extract from. Example: "main.ba2" matches files like\n'
+                '"xyzmod - Main.ba2" and "abcmod - main.BA2". Must end in ".ba2"'
+            ),
             parent=self.extraction_group,
         )
         self.ignored_card: IgnoredSettingCard = IgnoredSettingCard(
             cfg.ignored,
             Fi.REMOVE_FROM,
             self.tr("Ignored files"),
-            self.tr('Any file with filename containing them will not be extracted.\n'
-                    'To use regex, wrap the pattern inside {}, e.g. "{.*[dD]iamond.*}"'),
+            self.tr(
+                "Any file with filename containing them will not be extracted.\n"
+                'To use regex, wrap the pattern inside {}, e.g. "{.*[dD]iamond.*}"'
+            ),
             parent=self.extraction_group,
         )
         self.ignore_bad_card: SwitchSettingCard = SwitchSettingCard(
@@ -85,7 +90,8 @@ class SettingScreen(ScrollArea):
             self.tr("Theme"),
             self.tr("Change the theme of the app"),
             texts=[
-                self.tr("Light"), self.tr("Dark"),
+                self.tr("Light"),
+                self.tr("Dark"),
                 self.tr("Use system setting"),
             ],
             parent=self.personal_group,
@@ -130,8 +136,7 @@ class SettingScreen(ScrollArea):
             cfg.extraction_path,
             CustomIcon.FOLDER_ARROW_UP,
             self.tr("Extraction path"),
-            self.tr("The folder where ba2 files are extracted\n"
-                    "(leave empty to extract to the same folder)"),
+            self.tr("The folder where ba2 files are extracted\n(leave empty to extract to the same folder)"),
             self.advanced_group,
         )
 
@@ -139,8 +144,7 @@ class SettingScreen(ScrollArea):
             cfg.backup_path,
             Fi.DOCUMENT,
             self.tr("Backup path"),
-            self.tr('The folder where ba2 files are backed up\n'
-                    '(leave empty to back up to "backup" folder in the mod)'),
+            self.tr('The folder where ba2 files are backed up\n(leave empty to back up to "backup" folder in the mod)'),
             self.advanced_group,
         )
 
@@ -148,8 +152,7 @@ class SettingScreen(ScrollArea):
             cfg.ext_ba2_exe,
             Fi.APPLICATION,
             self.tr("External ba2 tool"),
-            self.tr('Path to an external ba2 tool that\'s used for the\n'
-                    '"Open" command in the table context menu'),
+            self.tr('Path to an external ba2 tool that\'s used for the\n"Open" command in the table context menu'),
             self.advanced_group,
             ["exe"],
             False,
@@ -245,7 +248,7 @@ class SettingScreen(ScrollArea):
         self.pending_update = True
 
     def __set_qss(self) -> None:
-        """ set style sheet """
+        """set style sheet"""
         self.scroll_widget.setObjectName("scrollWidget")
         self.setting_label.setObjectName("settingLabel")
 
@@ -254,7 +257,7 @@ class SettingScreen(ScrollArea):
             self.setStyleSheet(f.read())
 
     def __show_restart_tooltip(self) -> None:
-        """ show restart tooltip """
+        """show restart tooltip"""
         InfoBar.warning(
             "",
             self.tr("Configuration takes effect after restart"),
@@ -263,7 +266,7 @@ class SettingScreen(ScrollArea):
         )
 
     def __on_theme_changed(self, theme: Theme) -> None:
-        """ theme changed slot """
+        """theme changed slot"""
         # change the theme of qfluentwidgets
         setTheme(theme)
 
@@ -271,7 +274,7 @@ class SettingScreen(ScrollArea):
         self.__set_qss()
 
     def __on_theme_color_changed(self, color: str) -> None:
-        """ theme color changed slot """
+        """theme color changed slot"""
         setThemeColor(color)
 
     def __on_debug_changed(self) -> None:
@@ -281,7 +284,7 @@ class SettingScreen(ScrollArea):
             QApplication.instance().log_view.hide()
 
     def __connect_signal_to_slot(self) -> None:
-        """ connect signal to slot """
+        """connect signal to slot"""
         cfg.appRestartSig.connect(self.__show_restart_tooltip)
         cfg.themeChanged.connect(self.__on_theme_changed)
         cfg.themeColorChanged.connect(self.__on_theme_color_changed)
@@ -290,7 +293,6 @@ class SettingScreen(ScrollArea):
 
         # about
         # self.aboutCard.clicked.connect(self.checkUpdateSig)
-        self.about_setting_card.feedback_button.clicked.connect(
-            lambda: QDesktopServices.openUrl(QUrl(FEEDBACK_URL)))
+        self.about_setting_card.feedback_button.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(FEEDBACK_URL)))
 
         QApplication.instance().ignore_changed.connect(self.notify_ignore)

@@ -7,26 +7,45 @@ from qfluentwidgets import FluentIcon as Fi
 
 
 class InputSettingCard(SettingCard):
-    """ A setting card with a line input """
+    """A setting card with a line input"""
 
-    def __init__(self, config_item: ConfigItem, icon: str | QIcon | FluentIconBase, title: str,
-                 content: str | None = None, parent=None, extensions: list[str] | None = None,
-                 folder: bool = True,
-                 options: QFileDialog.Option = QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks):
+    def __init__(
+        self,
+        config_item: ConfigItem,
+        icon: str | QIcon | FluentIconBase,
+        title: str,
+        content: str | None = None,
+        parent=None,  # noqa: ANN001
+        extensions: list[str] | None = None,
+        folder: bool = True,
+        options: QFileDialog.Option = QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks,
+    ) -> None:
         """
         Parameters
         ----------
         config_item: ConfigItem
             configuration item operated by the card
 
-        icon:
-            card icon
-
         icon: str | QIcon | FluentIconBase
             the icon to be drawn
 
+        title: str
+            the title of card
+
         content: str
             the content of card
+
+        parent:
+            parent widget
+
+        extensions: list[str] | None
+            list of file extensions to filter when selecting files
+
+        folder: bool
+            if True, opens folder dialog; if False, opens file dialog
+
+        options: QFileDialog.Option
+            options for the file dialog
         """
         # Cast parameters to satisfy parent class type requirements
         super().__init__(cast("str | QIcon | Fi", icon), title, cast("str", content), parent)
@@ -61,13 +80,13 @@ class InputSettingCard(SettingCard):
         if self.config_item:
             qconfig.set(self.config_item, value)
 
-    def resizeEvent(self, event) -> None:
+    def resizeEvent(self, event) -> None:  # noqa: ANN001
         super().resizeEvent(event)
         self.input.setMinimumWidth(self.width() - 550)
 
     def __open_file(self) -> None:
-        _filter = ";;".join([f"{ext} files (*.{ext})" for ext in self.extensions] + ["All files (*)"])
-        file, _ = QFileDialog.getOpenFileName(self, self.tr("Choose a ba2 utility"), filter=_filter)
+        filter_ = ";;".join([f"{ext} files (*.{ext})" for ext in self.extensions] + ["All files (*)"])
+        file, _ = QFileDialog.getOpenFileName(self, self.tr("Choose a ba2 utility"), filter=filter_)
         if file:
             self.input.setText(file)
 

@@ -6,9 +6,9 @@ from qfluentwidgets import MessageBox
 
 def show_failed_files(parent: QWidget) -> None:
     failed_files_text: str = "\n".join(parent.failed)
-    box: MessageBox = MessageBox(QApplication.translate("MassageBox", "The following files could not be loaded"),
-                     failed_files_text,
-                     parent=parent)
+    box: MessageBox = MessageBox(
+        QApplication.translate("MassageBox", "The following files could not be loaded"), failed_files_text, parent=parent
+    )
     box.yesButton.setText(QApplication.translate("MassageBox", "Ok"))
     box.cancelButton.setText(QApplication.translate("MassageBox", "Copy to clipboard"))
     box.yesSignal.connect(box.deleteLater)
@@ -20,12 +20,16 @@ def show_failed_files(parent: QWidget) -> None:
 
 
 def auto_not_available(parent: Any) -> None:
-    w: MessageBox = MessageBox(QApplication.translate("MassageBox", "No unpacking necessary"),
-                   QApplication.translate("MassageBox",
-                                          "It appears that you are not over the ba2 limit (yet). "
-                                          "No ba2 unpacking is necessary. "
-                                          "To proceed please manually set a threshold."),
-                   parent)
+    w: MessageBox = MessageBox(
+        QApplication.translate("MassageBox", "No unpacking necessary"),
+        QApplication.translate(
+            "MassageBox",
+            "It appears that you are not over the ba2 limit (yet). "
+            "No ba2 unpacking is necessary. "
+            "To proceed please manually set a threshold.",
+        ),
+        parent,
+    )
     w.yesSignal.connect(parent.threshold_button.click)
     w.yesButton.setText(QApplication.translate("MassageBox", "Ok"))
     w.cancelSignal.connect(QApplication.quit)

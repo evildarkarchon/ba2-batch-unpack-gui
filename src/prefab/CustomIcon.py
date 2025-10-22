@@ -6,11 +6,12 @@ from misc.Utilities import resource_path
 
 
 class CustomIcon(FluentIconBase, Enum):
-    """ Custom icons """
+    """Custom icons"""
+
     FOLDER_ARROW_UP = "FolderArrowUp"
     STETHOSCOPE = "Stethoscope"
 
-    def path(self, theme=Theme.AUTO):
+    def path(self, theme=Theme.AUTO) -> str:  # noqa: ANN001
         if theme == Theme.DARK:
             theme_str = "dark"
         elif theme == Theme.LIGHT:

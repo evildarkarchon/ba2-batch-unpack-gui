@@ -11,6 +11,7 @@ from model.PreviewTableModel import FileEntry
 
 class ParentProtocol(Protocol):
     """Protocol defining the interface that BsaProcessor expects from its parent."""
+
     failed: set[pathlib.Path]
     file_data: list[FileEntry]
 
@@ -40,7 +41,7 @@ class BsaProcessor(QThread):
             # Auto ignore the blacklisted file if set so
             if is_ignored(f):
                 num_ignored += 1
-                QApplication.instance().log_view.add_log(f"Ignoring {f}", LogLevel.INFO) # pyright: ignore[reportAttributeAccessIssue]
+                QApplication.instance().log_view.add_log(f"Ignoring {f}", LogLevel.INFO)  # pyright: ignore[reportAttributeAccessIssue]
             elif num_files == -1:
                 num_failed += 1
                 if cfg.ignore_bad_files:

@@ -36,7 +36,7 @@ def is_ignored(file: str) -> bool:
 
 
 def resource_path(relative_path: str) -> str:
-    """ Get absolute path to resource, works for dev and for PyInstaller """
+    """Get absolute path to resource, works for dev and for PyInstaller"""
     if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
         base_path = sys._MEIPASS
     else:
@@ -63,7 +63,7 @@ header_struct = Struct(
     "names_offset" / Int64ul,
 )
 
-units = {"B": 1, "KB": 1000, "MB": 1000 ** 2, "GB": 1000 ** 3, "TB": 1000 ** 4}
+units = {"B": 1, "KB": 1000, "MB": 1000**2, "GB": 1000**3, "TB": 1000**4}
 
 
 def parse_size(size: str) -> int:

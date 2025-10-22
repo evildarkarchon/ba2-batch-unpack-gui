@@ -26,7 +26,7 @@ class PreviewTableModel(QtCore.QAbstractTableModel):
         if not index.isValid():
             return None
 
-        if role in (Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.EditRole, Qt.ItemDataRole.UserRole):
+        if role in {Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.EditRole, Qt.ItemDataRole.UserRole}:
             # Assumes the following layout
             # File Name, File Size, # Files, Path, Ignored
             if index.column() == 0:

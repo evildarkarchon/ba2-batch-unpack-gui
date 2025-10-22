@@ -20,10 +20,11 @@ from qfluentwidgets import FluentIcon as Fi
 
 
 class IgnoredItem(QWidget):
-    """ Ignored item """
+    """Ignored item"""
+
     removed = Signal(QWidget)
 
-    def __init__(self, ignored: str, parent=None):
+    def __init__(self, ignored: str, parent=None) -> None:  # noqa: ANN001
         super().__init__(parent=parent)
         self.ignored = ignored
         self.item_layout = QHBoxLayout(self)
@@ -43,17 +44,15 @@ class IgnoredItem(QWidget):
         self.item_layout.addWidget(self.remove_button, 0, Qt.AlignmentFlag.AlignRight)
         self.item_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
-        self.remove_button.clicked.connect(
-            lambda: self.removed.emit(self))
+        self.remove_button.clicked.connect(lambda: self.removed.emit(self))
 
 
 class IgnoredSettingCard(ExpandSettingCard):
-    """ Ignored files setting card """
+    """Ignored files setting card"""
 
     ignored_changed = Signal(list)
 
-    def __init__(self, config_item: ConfigItem, icon: str | QIcon | FluentIconBase, title: str,
-                 content: str | None = None, parent=None):
+    def __init__(self, config_item: ConfigItem, icon: str | QIcon | FluentIconBase, title: str, content: str | None = None, parent=None) -> None:  # noqa: ANN001, D417
         """
         Parameters
         ----------
@@ -83,7 +82,7 @@ class IgnoredSettingCard(ExpandSettingCard):
 
         self.__initWidget()
 
-    def __initWidget(self):
+    def __initWidget(self) -> None:
         self.setExpand(True)
 
         # initialize layout
@@ -103,7 +102,7 @@ class IgnoredSettingCard(ExpandSettingCard):
         self.new_ignored_input.setPlaceholderText(self.tr("Ignored"))
         self.add_ignored_button.clicked.connect(self.__add_ignored)
 
-    def __add_ignored(self, name=None):
+    def __add_ignored(self, name=None) -> None:  # noqa: ANN001
         if not name:
             # Validate input
             new_ignored = self.new_ignored_input.text()
@@ -121,8 +120,8 @@ class IgnoredSettingCard(ExpandSettingCard):
         qconfig.set(self.config_item, self.ignored)
         self.ignored_changed.emit(self.ignored)
 
-    def __add_ignored_item(self, ignored: str):
-        """ add folder item """
+    def __add_ignored_item(self, ignored: str) -> None:
+        """add folder item"""
         item = IgnoredItem(ignored, self.view)
         item.removed.connect(lambda: self.__remove_ignored(item))
         self.viewLayout.addWidget(item)
@@ -130,7 +129,7 @@ class IgnoredSettingCard(ExpandSettingCard):
         item.show()
         self._adjustViewSize()
 
-    def ignored_updated(self):
+    def ignored_updated(self) -> None:
         ignore_backup = qconfig.get(self.config_item).copy()
 
         self.__clear_ignored()
@@ -140,8 +139,8 @@ class IgnoredSettingCard(ExpandSettingCard):
             self.__add_ignored_item(i)
         qconfig.set(self.config_item, ignore_backup)
 
-    def __remove_ignored(self, item: IgnoredItem):
-        """ remove ignored """
+    def __remove_ignored(self, item: IgnoredItem) -> None:
+        """remove ignored"""
         if item.ignored not in self.ignored:
             return
 
@@ -154,11 +153,11 @@ class IgnoredSettingCard(ExpandSettingCard):
         self.ignored_changed.emit(self.ignored)
         qconfig.set(self.config_item, self.ignored)
 
-    def __clear_ignored(self):
+    def __clear_ignored(self) -> None:
         for card in self.ignored_cards[:]:
             self.__remove_ignored(card)
 
-    def __show_ignore_failed_tip(self):
+    def __show_ignore_failed_tip(self) -> None:
         TeachingTip.create(
             target=self.new_ignored_input,
             icon=InfoBarIcon.ERROR,
@@ -170,7 +169,7 @@ class IgnoredSettingCard(ExpandSettingCard):
             parent=self,
         )
 
-    def __show_ignore_duplicate_tip(self):
+    def __show_ignore_duplicate_tip(self) -> None:
         TeachingTip.create(
             target=self.new_ignored_input,
             icon=InfoBarIcon.ERROR,
