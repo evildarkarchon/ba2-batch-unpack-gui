@@ -10,8 +10,11 @@ use std::rc::Rc;
 /// Toast notification data structure
 #[derive(Clone)]
 pub struct ToastData {
+    /// The message text to display
     pub message: String,
+    /// The type of notification (success, error, warning, info)
     pub notification_type: NotificationType,
+    /// Whether the toast is currently visible
     pub show: bool,
 }
 
@@ -132,10 +135,15 @@ fn dismiss_toast(window: &MainWindow, index: usize) {
 
 /// Dialog configuration
 pub struct DialogConfig {
+    /// Dialog title
     pub title: String,
+    /// Dialog message text
     pub message: String,
+    /// Type of dialog (info, success, warning, error)
     pub dialog_type: NotificationType,
+    /// Label for the primary (confirm) button
     pub primary_button: String,
+    /// Optional label for the secondary (cancel) button
     pub secondary_button: Option<String>,
 }
 

@@ -15,6 +15,7 @@ use anyhow::Result;
 use humansize::{format_size, BINARY};
 use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 
@@ -115,6 +116,7 @@ fn setup_callbacks(main_window: &MainWindow) {
     setup_extraction_control_callbacks(main_window, Arc::clone(&extraction_control)); // Phase 2.3
     setup_update_checker_callback(main_window);
     setup_platform_integration(main_window, Arc::clone(&state)); // Phase 2.9
+    setup_log_viewer_callbacks(main_window); // Phase 3.3
 
     tracing::info!("UI callbacks initialized");
 }
@@ -1285,6 +1287,177 @@ fn refresh_file_table(ui: &MainWindow, state: &Arc<Mutex<AppState>>, threshold: 
         filtered_entries.len(),
         if threshold.is_some() { " (filtered)" } else { "" }
     );
+}
+
+/// Set up debug log viewer callbacks (Phase 3.3)
+fn setup_log_viewer_callbacks(main_window: &MainWindow) {
+    use crate::log_viewer::{LogLevel, LogViewer};
+
+    // Refresh logs callback
+    {
+        let ui_weak = main_window.as_weak();
+        main_window.on_log_viewer_refresh(move || {
+            let ui_weak_clone = ui_weak.clone();
+
+            // Get current filter level before spawning thread
+            let filter_level = ui_weak.upgrade().map(|ui| ui.get_log_filter_level());
+
+            std::thread::spawn(move || {
+                let mut viewer = LogViewer::new();
+                if let Err(e) = viewer.load_logs() {
+                    tracing::error!("Failed to load logs: {}", e);
+                    return;
+                }
+
+                // Apply filter
+                let log_level = match filter_level {
+                    Some(0) => Some(LogLevel::Error),
+                    Some(1) => Some(LogLevel::Warn),
+                    Some(2) => Some(LogLevel::Info),
+                    Some(3) => Some(LogLevel::Debug),
+                    Some(4) => Some(LogLevel::Trace),
+                    _ => None,
+                };
+                viewer.set_filter(log_level);
+
+                // Convert entries to Slint model
+                let entries: Vec<LogRowData> = viewer
+                    .get_filtered_entries()
+                    .iter()
+                    .map(|entry| {
+                        let level_str = entry.level.map(|l| l.to_string()).unwrap_or_default();
+                        let color_str = entry.level.map(|l| l.color()).unwrap_or("#FFFFFF");
+
+                        // Parse color string to slint::Color
+                        let color = slint::Color::from_argb_encoded(
+                            u32::from_str_radix(&color_str[1..], 16).unwrap_or(0xFFFFFFFF)
+                                | 0xFF000000 // Ensure full opacity
+                        );
+
+                        LogRowData {
+                            timestamp: SharedString::from(
+                                entry.timestamp.clone().unwrap_or_default()
+                            ),
+                            level: SharedString::from(level_str),
+                            target: SharedString::from(
+                                entry.target.clone().unwrap_or_default()
+                            ),
+                            message: SharedString::from(entry.message.clone()),
+                            color,
+                        }
+                    })
+                    .collect();
+
+                // Update UI with log entries
+                slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = ui_weak_clone.upgrade() {
+                        let model = Rc::new(VecModel::from(entries));
+                        ui.set_log_entries(ModelRc::from(model));
+                        tracing::debug!("Refreshed log viewer");
+                    }
+                })
+                .ok();
+            });
+        });
+    }
+
+    // Clear logs callback
+    {
+        let ui_weak = main_window.as_weak();
+        main_window.on_log_viewer_clear(move || {
+            let ui_weak = ui_weak.clone();
+            slint::invoke_from_event_loop(move || {
+                if let Some(ui) = ui_weak.upgrade() {
+                    let empty_model = Rc::new(VecModel::<LogRowData>::default());
+                    ui.set_log_entries(ModelRc::from(empty_model));
+                    tracing::debug!("Cleared log viewer");
+                }
+            })
+            .ok();
+        });
+    }
+
+    // Copy logs callback
+    {
+        let ui_weak = main_window.as_weak();
+        main_window.on_log_viewer_copy(move || {
+            // Get current filter level before spawning thread
+            let filter_level = ui_weak.upgrade().map(|ui| ui.get_log_filter_level());
+
+            std::thread::spawn(move || {
+                let mut viewer = LogViewer::new();
+                if let Err(e) = viewer.load_logs() {
+                    tracing::error!("Failed to load logs for copying: {}", e);
+                    return;
+                }
+
+                // Apply filter
+                let log_level = match filter_level {
+                    Some(0) => Some(LogLevel::Error),
+                    Some(1) => Some(LogLevel::Warn),
+                    Some(2) => Some(LogLevel::Info),
+                    Some(3) => Some(LogLevel::Debug),
+                    Some(4) => Some(LogLevel::Trace),
+                    _ => None,
+                };
+                viewer.set_filter(log_level);
+
+                // Format logs as text
+                let log_text: String = viewer
+                    .get_filtered_entries()
+                    .iter()
+                    .map(|entry| entry.raw_line.clone())
+                    .collect::<Vec<_>>()
+                    .join("\n");
+
+                // TODO: Implement clipboard support (requires arboard crate)
+                // For now, just log that the feature is not yet implemented
+                tracing::info!("Copy to clipboard requested ({} chars)", log_text.len());
+                tracing::warn!("Clipboard support not yet implemented");
+            });
+        });
+    }
+
+    // Filter changed callback
+    {
+        let ui_weak = main_window.as_weak();
+        main_window.on_log_viewer_filter_changed(move |level| {
+            let ui_weak = ui_weak.clone();
+            slint::invoke_from_event_loop(move || {
+                if let Some(ui) = ui_weak.upgrade() {
+                    ui.set_log_filter_level(level);
+                    // Trigger refresh with new filter
+                    ui.invoke_log_viewer_refresh();
+                    tracing::debug!("Log viewer filter changed to level: {}", level);
+                }
+            })
+            .ok();
+        });
+    }
+
+    // Toggle visibility callback
+    {
+        let ui_weak = main_window.as_weak();
+        main_window.on_log_viewer_toggle(move || {
+            let ui_weak = ui_weak.clone();
+            slint::invoke_from_event_loop(move || {
+                if let Some(ui) = ui_weak.upgrade() {
+                    let current = ui.get_show_log_viewer();
+                    ui.set_show_log_viewer(!current);
+
+                    // If opening, refresh logs
+                    if !current {
+                        ui.invoke_log_viewer_refresh();
+                    }
+
+                    tracing::debug!("Log viewer toggled: {}", !current);
+                }
+            })
+            .ok();
+        });
+    }
+
+    tracing::info!("Log viewer callbacks initialized");
 }
 
 #[cfg(test)]

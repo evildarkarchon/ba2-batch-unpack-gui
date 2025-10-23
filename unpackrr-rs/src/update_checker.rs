@@ -15,22 +15,34 @@ const CURRENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// GitHub API release response structure
 #[derive(Debug, Deserialize)]
 struct GitHubRelease {
+    /// Git tag name (e.g., "v1.0.0")
     tag_name: String,
+    /// Human-readable release name
     name: String,
+    /// Release notes/description (markdown)
     body: Option<String>,
+    /// URL to the release page on GitHub
     html_url: String,
+    /// Whether this is a pre-release version
     prerelease: bool,
+    /// Whether this is a draft release
     draft: bool,
 }
 
 /// Information about an available update
 #[derive(Debug, Clone)]
 pub struct UpdateInfo {
+    /// Current installed version
     pub current_version: String,
+    /// Latest available version
     pub latest_version: String,
+    /// Human-readable name of the latest release
     pub release_name: String,
+    /// Release notes in markdown format
     pub release_notes: String,
+    /// URL to download the update
     pub download_url: String,
+    /// Whether the latest version is a pre-release
     pub is_prerelease: bool,
 }
 

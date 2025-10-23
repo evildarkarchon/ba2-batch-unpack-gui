@@ -19,16 +19,32 @@ use tracing::{debug, warn};
 #[derive(Debug, Clone)]
 pub enum ScanProgress {
     /// Started scanning a directory
-    Started { total_dirs: usize },
+    Started {
+        /// Total number of directories to scan
+        total_dirs: usize
+    },
 
     /// Scanning a specific mod folder
-    ScanningFolder { folder: String, current: usize, total: usize },
+    ScanningFolder {
+        /// Name of the folder being scanned
+        folder: String,
+        /// Current directory index
+        current: usize,
+        /// Total number of directories
+        total: usize
+    },
 
     /// Found a BA2 file
-    FoundBA2 { file_name: String },
+    FoundBA2 {
+        /// Name of the BA2 file found
+        file_name: String
+    },
 
     /// Finished scanning
-    Complete { total_files: usize },
+    Complete {
+        /// Total number of BA2 files discovered
+        total_files: usize
+    },
 }
 
 /// Scan a directory for BA2 files matching the configured postfixes

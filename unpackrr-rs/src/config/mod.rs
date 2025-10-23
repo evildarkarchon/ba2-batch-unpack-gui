@@ -111,11 +111,17 @@ pub struct AdvancedConfig {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum LogLevel {
+    /// Fatal errors (most critical)
     Fatal = 0,
+    /// Error messages
     Error = 1,
+    /// Warning messages
     Warning = 2,
+    /// Informational messages
     Info = 3,
+    /// Debug messages
     Debug = 4,
+    /// Trace messages (most verbose)
     Trace = 5,
 }
 

@@ -437,6 +437,15 @@ export struct FileRowData {
     is-bad: bool,
 }
 
+// Phase 3.3: Log entry data for debug log viewer
+export struct LogRowData {
+    timestamp: string,
+    level: string,       // "ERROR", "WARN", "INFO", "DEBUG", "TRACE"
+    target: string,      // Module path (e.g., "unpackrr::operations::scan")
+    message: string,
+    color: color,        // Color for this log level
+}
+
 // Table row component
 component FileTableRow inherits Rectangle {
     in property <FileRowData> row-data;
@@ -1451,6 +1460,7 @@ component SettingsScreen inherits Rectangle {
     callback browse-external-tool();
     callback reset-settings();
     callback check-for-updates();
+    callback view-logs(); // Phase 3.3
 
     background: Colors.background;
 
@@ -1602,6 +1612,26 @@ component SettingsScreen inherits Rectangle {
                         checked <=> show-debug;
                         toggled => {
                             toggle-changed("show_debug", self.checked);
+                        }
+                    }
+
+                    // Phase 3.3: View Logs button
+                    HorizontalBox {
+                        spacing: 8px;
+
+                        FluentButton {
+                            text: "View Logs";
+                            width: 120px;
+                            clicked => {
+                                root.view-logs();
+                            }
+                        }
+
+                        Text {
+                            text: "Open the debug log viewer";
+                            font-size: Typography.caption-size;
+                            color: Colors.text-secondary;
+                            vertical-alignment: center;
                         }
                     }
 
@@ -2128,6 +2158,311 @@ export component MessageDialog inherits Rectangle {
     }
 }
 
+// Phase 3.3: Debug Log Viewer Dialog
+export component LogViewDialog inherits Rectangle {
+    in property <bool> show: false;
+    in-out property <[LogRowData]> log-entries: [];
+    in-out property <int> filter-level: -1; // -1 = All, 0 = ERROR, 1 = WARN, 2 = INFO, 3 = DEBUG, 4 = TRACE
+
+    callback refresh-logs();
+    callback clear-logs();
+    callback copy-logs();
+    callback filter-changed(int);
+    callback closed();
+
+    width: 100%;
+    height: 100%;
+
+    // Overlay background (semi-transparent)
+    if show: overlay-bg := Rectangle {
+        width: 100%;
+        height: 100%;
+        background: Colors.overlay;
+
+        TouchArea {
+            clicked => {
+                root.closed();
+            }
+        }
+    }
+
+    // Log viewer dialog
+    if show: dialog-container := Rectangle {
+        x: parent.width * 0.05;
+        y: parent.height * 0.05;
+        width: parent.width * 0.9;
+        height: parent.height * 0.9;
+        background: Colors.surface;
+        border-radius: 8px;
+        drop-shadow-blur: 16px;
+        drop-shadow-color: Colors.shadow-heavy;
+        drop-shadow-offset-y: 4px;
+
+        VerticalLayout {
+            padding: 20px;
+            spacing: 12px;
+
+            // Header with title and close button
+            HorizontalBox {
+                height: 40px;
+                spacing: 12px;
+
+                Text {
+                    text: "Debug Log Viewer";
+                    font-size: Typography.subtitle-size;
+                    font-weight: 600;
+                    color: Colors.text-primary;
+                    vertical-alignment: center;
+                    horizontal-stretch: 1;
+                }
+
+                // Close button
+                Rectangle {
+                    width: 32px;
+                    height: 32px;
+                    background: transparent;
+                    border-radius: 4px;
+
+                    animate background { duration: 150ms; easing: ease-out; }
+
+                    states [
+                        hover when close-touch.has-hover: {
+                            background: Colors.surface-hover;
+                        }
+                        pressed when close-touch.pressed: {
+                            background: Colors.surface-pressed;
+                        }
+                    ]
+
+                    close-touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.closed();
+                        }
+                    }
+
+                    Text {
+                        text: "✕";
+                        font-size: 18px;
+                        color: Colors.text-primary;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // Toolbar with filter and action buttons
+            HorizontalBox {
+                height: 40px;
+                spacing: 8px;
+
+                // Filter label
+                Text {
+                    text: "Filter:";
+                    font-size: Typography.body-size;
+                    color: Colors.text-secondary;
+                    vertical-alignment: center;
+                }
+
+                // Filter dropdown (simulated with buttons)
+                HorizontalBox {
+                    spacing: 4px;
+
+                    FluentButton {
+                        text: "All";
+                        width: 60px;
+                        primary: filter-level == -1;
+                        clicked => {
+                            root.filter-changed(-1);
+                        }
+                    }
+
+                    FluentButton {
+                        text: "ERROR";
+                        width: 70px;
+                        primary: filter-level == 0;
+                        clicked => {
+                            root.filter-changed(0);
+                        }
+                    }
+
+                    FluentButton {
+                        text: "WARN";
+                        width: 70px;
+                        primary: filter-level == 1;
+                        clicked => {
+                            root.filter-changed(1);
+                        }
+                    }
+
+                    FluentButton {
+                        text: "INFO";
+                        width: 70px;
+                        primary: filter-level == 2;
+                        clicked => {
+                            root.filter-changed(2);
+                        }
+                    }
+
+                    FluentButton {
+                        text: "DEBUG";
+                        width: 70px;
+                        primary: filter-level == 3;
+                        clicked => {
+                            root.filter-changed(3);
+                        }
+                    }
+
+                    FluentButton {
+                        text: "TRACE";
+                        width: 70px;
+                        primary: filter-level == 4;
+                        clicked => {
+                            root.filter-changed(4);
+                        }
+                    }
+                }
+
+                // Spacer
+                Rectangle {
+                    horizontal-stretch: 1;
+                }
+
+                // Action buttons
+                FluentButton {
+                    text: "Refresh";
+                    width: 90px;
+                    clicked => {
+                        root.refresh-logs();
+                    }
+                }
+
+                FluentButton {
+                    text: "Copy";
+                    width: 80px;
+                    clicked => {
+                        root.copy-logs();
+                    }
+                }
+
+                FluentButton {
+                    text: "Clear";
+                    width: 80px;
+                    clicked => {
+                        root.clear-logs();
+                    }
+                }
+            }
+
+            // Log entries count
+            HorizontalBox {
+                height: 20px;
+                Text {
+                    text: log-entries.length + " log entries";
+                    font-size: Typography.caption-size;
+                    color: Colors.text-secondary;
+                }
+            }
+
+            // Log content area with scroll
+            Rectangle {
+                background: Colors.background;
+                border-radius: 4px;
+                border-width: 1px;
+                border-color: Colors.border;
+                vertical-stretch: 1;
+
+                ScrollView {
+                    width: 100%;
+                    height: 100%;
+
+                    VerticalLayout {
+                        padding: 8px;
+                        spacing: 2px;
+
+                        // Log entries
+                        for entry[idx] in log-entries: log-row := Rectangle {
+
+                            HorizontalBox {
+                                spacing: 8px;
+                                padding: 4px;
+
+                                // Timestamp
+                                Text {
+                                    text: entry.timestamp;
+                                    font-size: Typography.caption-size;
+                                    color: Colors.text-secondary;
+                                    font-family: "monospace";
+                                    vertical-alignment: top;
+                                    width: 160px;
+                                }
+
+                                // Level
+                                Rectangle {
+                                    width: 60px;
+                                    Text {
+                                        text: entry.level;
+                                        font-size: Typography.caption-size;
+                                        color: entry.color;
+                                        font-weight: 700;
+                                        font-family: "monospace";
+                                        vertical-alignment: top;
+                                    }
+                                }
+
+                                // Target
+                                Text {
+                                    text: entry.target;
+                                    font-size: Typography.caption-size;
+                                    color: Colors.text-secondary;
+                                    font-family: "monospace";
+                                    vertical-alignment: top;
+                                    width: 200px;
+                                    overflow: elide;
+                                }
+
+                                // Message
+                                Text {
+                                    text: entry.message;
+                                    font-size: Typography.caption-size;
+                                    color: Colors.text-primary;
+                                    font-family: "monospace";
+                                    vertical-alignment: top;
+                                    horizontal-stretch: 1;
+                                    wrap: word-wrap;
+                                }
+                            }
+                        }
+
+                        // Empty state
+                        if log-entries.length == 0: Rectangle {
+                            height: 200px;
+
+                            VerticalLayout {
+                                alignment: center;
+
+                                Text {
+                                    text: "No log entries";
+                                    font-size: Typography.body-size;
+                                    color: Colors.text-secondary;
+                                    horizontal-alignment: center;
+                                }
+
+                                Text {
+                                    text: "Logs will appear here when the application runs";
+                                    font-size: Typography.caption-size;
+                                    color: Colors.text-secondary;
+                                    horizontal-alignment: center;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 // Toast notification container (manages multiple toasts)
 export component ToastContainer inherits Rectangle {
     in-out property <[{message: string, type: NotificationType, show: bool}]> toasts: [];
@@ -2249,6 +2584,11 @@ export component MainWindow inherits Window {
     in-out property <int> validation-corrupted-count: 0;
     in-out property <string> validation-status: "Ready to validate BA2 files";
 
+    // Phase 3.3: Debug log viewer state
+    in-out property <bool> show-log-viewer: false;
+    in-out property <[LogRowData]> log-entries: [];
+    in-out property <int> log-filter-level: -1; // -1 = All, 0-4 = specific levels
+
     // Extraction screen callbacks (exposed for Rust)
     callback browse-folder();
     callback start-scan();
@@ -2284,6 +2624,13 @@ export component MainWindow inherits Window {
     callback validation-browse-folder();
     callback validation-start();
     callback validation-cancel();
+
+    // Phase 3.3: Debug log viewer callbacks
+    callback log-viewer-refresh();
+    callback log-viewer-clear();
+    callback log-viewer-copy();
+    callback log-viewer-filter-changed(int);
+    callback log-viewer-toggle(); // Show/hide the log viewer
 
     HorizontalBox {
         spacing: 0;
@@ -2390,6 +2737,7 @@ export component MainWindow inherits Window {
                 browse-external-tool => { root.settings-browse-external-tool(); }
                 reset-settings => { root.settings-reset(); }
                 check-for-updates => { root.check-for-updates(); }
+                view-logs => { root.log-viewer-toggle(); } // Phase 3.3
             }
 
             // Toast notifications overlay
@@ -2412,6 +2760,20 @@ export component MainWindow inherits Window {
                 primary-action => { root.dialog-primary-clicked(); }
                 secondary-action => { root.dialog-secondary-clicked(); }
                 closed => { root.dialog-dismissed(); }
+            }
+
+            // Phase 3.3: Debug log viewer overlay
+            log-viewer-overlay := LogViewDialog {
+                width: 100%;
+                height: 100%;
+                show: root.show-log-viewer;
+                log-entries: root.log-entries;
+                filter-level: root.log-filter-level;
+                refresh-logs => { root.log-viewer-refresh(); }
+                clear-logs => { root.log-viewer-clear(); }
+                copy-logs => { root.log-viewer-copy(); }
+                filter-changed(level) => { root.log-viewer-filter-changed(level); }
+                closed => { root.show-log-viewer = false; }
             }
         }
     }

@@ -12,6 +12,7 @@
 //! - `models`: Data models for UI display
 //! - `ui`: Slint UI components and integration
 //! - `logging`: Logging configuration and file rotation
+//! - `log_viewer`: Log viewer for displaying and filtering application logs
 //! - `update_checker`: GitHub release update checking
 //! - `platform`: Platform-specific functionality (Windows registry, etc.)
 
@@ -21,6 +22,7 @@
 pub mod ba2;
 pub mod config;
 pub mod error;
+pub mod log_viewer;
 pub mod logging;
 pub mod models;
 pub mod operations;

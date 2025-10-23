@@ -39,14 +39,18 @@ pub enum ConfigError {
     /// Failed to load configuration file
     #[error("Failed to load configuration from {path}: {source}")]
     LoadFailed {
+        /// Path to the configuration file
         path: PathBuf,
+        /// Underlying I/O error
         source: std::io::Error,
     },
 
     /// Failed to save configuration file
     #[error("Failed to save configuration to {path}: {source}")]
     SaveFailed {
+        /// Path to the configuration file
         path: PathBuf,
+        /// Underlying I/O error
         source: std::io::Error,
     },
 
@@ -61,7 +65,9 @@ pub enum ConfigError {
     /// Invalid regex pattern in configuration
     #[error("Invalid regex pattern '{pattern}': {source}")]
     InvalidRegex {
+        /// The invalid regex pattern
         pattern: String,
+        /// Underlying regex compilation error
         source: regex::Error,
     },
 
@@ -75,23 +81,44 @@ pub enum ConfigError {
 pub enum BA2Error {
     /// Invalid BA2 magic number
     #[error("Invalid BA2 magic number in file {path}")]
-    InvalidMagic { path: PathBuf },
+    InvalidMagic {
+        /// Path to the BA2 file with invalid magic number
+        path: PathBuf
+    },
 
     /// Unsupported BA2 version
     #[error("Unsupported BA2 version {version} in file {path}")]
-    UnsupportedVersion { version: u32, path: PathBuf },
+    UnsupportedVersion {
+        /// The unsupported version number
+        version: u32,
+        /// Path to the BA2 file
+        path: PathBuf
+    },
 
     /// Corrupted BA2 file
     #[error("Corrupted BA2 file: {path} - {reason}")]
-    Corrupted { path: PathBuf, reason: String },
+    Corrupted {
+        /// Path to the corrupted BA2 file
+        path: PathBuf,
+        /// Reason for corruption
+        reason: String
+    },
 
     /// Failed to extract BA2 file
     #[error("Failed to extract {path}: {reason}")]
-    ExtractionFailed { path: PathBuf, reason: String },
+    ExtractionFailed {
+        /// Path to the BA2 file
+        path: PathBuf,
+        /// Reason for extraction failure
+        reason: String
+    },
 
     /// BSArch.exe not found
     #[error("BSArch.exe not found at expected location: {path}")]
-    BSArchNotFound { path: PathBuf },
+    BSArchNotFound {
+        /// Expected path to BSArch.exe
+        path: PathBuf
+    },
 
     /// BSArch.exe execution failed
     #[error("BSArch.exe execution failed: {0}")]
