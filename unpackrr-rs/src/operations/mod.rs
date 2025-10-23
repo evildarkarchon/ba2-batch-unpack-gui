@@ -6,9 +6,11 @@
 //! - File validation
 //! - Size parsing utilities
 //! - Path handling utilities
+//! - Retry logic for transient failures
 
 pub mod extract;
 pub mod path;
+pub mod retry;
 pub mod scan;
 
 use crate::error::{Result, ValidationError};
@@ -27,6 +29,9 @@ pub use path::{
     canonicalize_path, get_parent, is_valid_directory, is_valid_file, normalize_separators,
     paths_equal, resolve_path,
 };
+
+// Re-export retry utilities (Phase 2.8)
+pub use retry::{retry, retry_with_config, RetryConfig};
 
 /// Information about a discovered BA2 file
 #[derive(Debug, Clone)]

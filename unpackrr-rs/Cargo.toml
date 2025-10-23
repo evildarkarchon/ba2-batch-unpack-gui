@@ -6,13 +6,18 @@ license = "GPL-3.0"
 authors = ["evildarkarchon"]
 description = "High-performance BA2 batch unpacker with Fluent Design UI"
 repository = "https://github.com/evildarkarchon/ba2-batch-unpack-gui"
+homepage = "https://github.com/evildarkarchon/ba2-batch-unpack-gui"
+keywords = ["ba2", "bethesda", "fallout", "archive", "unpacker"]
+categories = ["game-development", "gui"]
+readme = "README.md"
 
 # Optimize for size and performance in release builds
 [profile.release]
-opt-level = 3
-lto = true
-codegen-units = 1
-strip = true
+opt-level = 3              # Maximum optimization
+lto = "fat"               # Fat LTO for best optimization (slower build)
+codegen-units = 1          # Better optimization at cost of compile time
+strip = true               # Remove debug symbols
+panic = "abort"            # Smaller binary (no stack unwinding)
 
 # Enable some optimizations in dev for better testing experience
 [profile.dev]
@@ -61,6 +66,19 @@ humansize = "2.1"
 
 # Native file dialogs
 rfd = "0.15"
+
+# HTTP client for update checking (Phase 2.6)
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+
+# Version comparison (Phase 2.6)
+semver = "1.0"
+
+# Open URLs in browser (Phase 2.6)
+open = "5.0"
+
+# Windows-only dependencies (Phase 2.9)
+[target.'cfg(windows)'.dependencies]
+winreg = "0.52"
 
 [build-dependencies]
 slint-build = "1.9"

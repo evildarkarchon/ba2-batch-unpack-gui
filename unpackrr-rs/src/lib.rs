@@ -12,6 +12,8 @@
 //! - `models`: Data models for UI display
 //! - `ui`: Slint UI components and integration
 //! - `logging`: Logging configuration and file rotation
+//! - `update_checker`: GitHub release update checking
+//! - `platform`: Platform-specific functionality (Windows registry, etc.)
 
 #![warn(clippy::all, clippy::pedantic, clippy::nursery)]
 #![allow(clippy::must_use_candidate, clippy::missing_errors_doc)]
@@ -22,6 +24,8 @@ pub mod error;
 pub mod logging;
 pub mod models;
 pub mod operations;
+pub mod platform;
 pub mod ui;
+pub mod update_checker;
 
 pub use error::{Error, Result};

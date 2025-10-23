@@ -3,39 +3,82 @@
 
 import { VerticalBox, HorizontalBox, Button, ListView, ScrollView } from "std-widgets.slint";
 
-// Fluent Design Color Palette
+// Fluent Design Color Palette (Phase 2.4 - Enhanced Theme System)
 global Colors {
-    // Light theme colors
-    in-out property <bool> dark-mode: false;
+    // Theme mode: 0 = Light, 1 = Dark, 2 = System (for now, same as Light)
+    in-out property <int> theme-mode: 0;
 
+    // Custom accent color (RGB format)
+    in-out property <color> custom-accent: #0078d4; // Default Fluent blue
+
+    // Computed dark mode state
+    property <bool> dark-mode: theme-mode == 1 || (theme-mode == 2 && false); // TODO: System detection
+
+    // Base colors - adapt to theme
     out property <color> background: dark-mode ? #1e1e1e : #f3f3f3;
     out property <color> surface: dark-mode ? #2d2d2d : #ffffff;
     out property <color> surface-hover: dark-mode ? #3a3a3a : #f5f5f5;
+    out property <color> surface-pressed: dark-mode ? #424242 : #e8e8e8;
     out property <color> border: dark-mode ? #404040 : #e0e0e0;
     out property <color> text-primary: dark-mode ? #ffffff : #000000;
     out property <color> text-secondary: dark-mode ? #b0b0b0 : #666666;
-    out property <color> accent: #0078d4; // Fluent blue
-    out property <color> accent-hover: #106ebe;
-    out property <color> accent-pressed: #005a9e;
+    out property <color> text-disabled: dark-mode ? #6d6d6d : #a0a0a0;
+
+    // Accent colors - use custom accent
+    out property <color> accent: custom-accent;
+    out property <color> accent-hover: custom-accent.darker(0.1);
+    out property <color> accent-pressed: custom-accent.darker(0.2);
+    out property <color> accent-subtle: custom-accent.with-alpha(0.1);
+
+    // Semantic colors - consistent across themes
     out property <color> danger: #d13438;
+    out property <color> danger-hover: #c92a2e;
+    out property <color> danger-pressed: #a51d20;
     out property <color> success: #107c10;
+    out property <color> success-hover: #0e6b0e;
+    out property <color> success-pressed: #0b5a0b;
     out property <color> warning: #ffaa44;
+    out property <color> warning-hover: #ff9922;
+    out property <color> warning-pressed: #ff8800;
+    out property <color> info: #0078d4;
 
     // Sidebar colors
     out property <color> sidebar-background: dark-mode ? #252525 : #fafafa;
     out property <color> sidebar-selected: dark-mode ? #2d2d2d : #f0f0f0;
     out property <color> sidebar-hover: dark-mode ? #2a2a2a : #f5f5f5;
+
+    // Additional UI element colors
+    out property <color> divider: dark-mode ? #333333 : #e0e0e0;
+    out property <color> overlay: rgba(0, 0, 0, 0.5);
+    out property <color> focus-ring: custom-accent;
+
+    // Fluent Design shadows
+    out property <color> shadow-light: rgba(0, 0, 0, 0.1);
+    out property <color> shadow-medium: rgba(0, 0, 0, 0.2);
+    out property <color> shadow-heavy: rgba(0, 0, 0, 0.3);
 }
 
-// Typography
+// Typography (Phase 3.1.3: Dynamic scaling based on window size)
 global Typography {
-    out property <length> title-size: 24px;
-    out property <length> subtitle-size: 18px;
-    out property <length> body-size: 14px;
-    out property <length> caption-size: 12px;
+    // Base font sizes (at 1000px window width)
+    property <length> base-title: 24px;
+    property <length> base-subtitle: 18px;
+    property <length> base-body: 14px;
+    property <length> base-caption: 12px;
+
+    // Scaling factor based on window width (800px min, 1600px max for scaling)
+    // At 800px: scale = 0.9, At 1000px: scale = 1.0, At 1600px: scale = 1.15
+    in property <length> window-width: 1000px;
+    property <float> scale-factor: max(0.9, min(1.15, 0.9 + (window-width - 800px) / 2000px));
+
+    // Scaled font sizes
+    out property <length> title-size: base-title * scale-factor;
+    out property <length> subtitle-size: base-subtitle * scale-factor;
+    out property <length> body-size: base-body * scale-factor;
+    out property <length> caption-size: base-caption * scale-factor;
 }
 
-// Navigation item component
+// Navigation item component (Phase 3.1: Enhanced with smooth animations)
 component NavigationItem inherits Rectangle {
     in property <string> text;
     in property <string> icon;
@@ -46,6 +89,9 @@ component NavigationItem inherits Rectangle {
     height: 48px;
     background: selected ? Colors.sidebar-selected : transparent;
     border-radius: 4px;
+
+    // Phase 3.1: Smooth background transitions
+    animate background { duration: 200ms; easing: ease-in-out; }
 
     states [
         hover when touch.has-hover && !selected: {
@@ -87,11 +133,21 @@ component NavigationItem inherits Rectangle {
 // Main navigation sidebar
 component NavigationSidebar inherits Rectangle {
     in-out property <int> selected-index: 0;
+    in property <length> available-width: 220px; // Phase 3.1.3: Responsive width
 
     callback navigation-changed(int);
 
-    width: 220px;
+    // Phase 3.1.3: Adaptive width based on available space
+    // Full width (220px) for >= 1000px windows
+    // Narrow (180px) for 800-999px windows
+    // Icon-only would be < 800px, but we enforce 800px minimum
+    width: available-width >= 1000px ? 220px :
+           available-width >= 800px ? 180px : 180px;
+
     background: Colors.sidebar-background;
+
+    // Phase 3.1.3: Smooth width transitions
+    animate width { duration: 200ms; easing: ease-in-out; }
 
     // Border on right side
     Rectangle {
@@ -174,6 +230,17 @@ component FluentButton inherits Rectangle {
                 primary ? Colors.accent :
                 Colors.surface;
 
+    // Phase 3.1: Smooth animations for background and border
+    animate background { duration: 150ms; easing: ease-out; }
+
+    // Phase 3.1: Add subtle drop shadow for depth
+    drop-shadow-blur: touch.has-hover && enabled ? 4px : 0px;
+    drop-shadow-color: touch.has-hover && enabled ? Colors.shadow-light : transparent;
+    drop-shadow-offset-y: touch.has-hover && enabled ? 2px : 0px;
+
+    animate drop-shadow-blur { duration: 150ms; easing: ease-out; }
+    animate drop-shadow-offset-y { duration: 150ms; easing: ease-out; }
+
     states [
         hover when touch.has-hover && enabled && !primary: {
             background: Colors.surface-hover;
@@ -201,6 +268,118 @@ component FluentButton inherits Rectangle {
         font-size: Typography.body-size;
         horizontal-alignment: center;
         vertical-alignment: center;
+    }
+}
+
+// Context menu popup (Phase 2.3)
+component ContextMenu inherits Rectangle {
+    in property <bool> show: false;
+    in property <length> menu-x: 0;
+    in property <length> menu-y: 0;
+
+    callback action-clicked(string);
+
+    if show: Rectangle {
+        x: menu-x;
+        y: menu-y - 10px; // Slight offset for animation
+        width: 120px;
+        height: 70px;
+        background: Colors.surface;
+        border-radius: 6px;
+        drop-shadow-blur: 8px;
+        drop-shadow-color: #00000040;
+        drop-shadow-offset-y: 2px;
+
+        // Phase 3.1: Smooth popup fade-in animation
+        opacity: 1.0;
+        animate opacity { duration: 200ms; easing: ease-out; }
+
+        VerticalLayout {
+            padding: 4px;
+            spacing: 2px;
+
+            // Ignore action
+            Rectangle {
+                height: 32px;
+                background: transparent;
+                border-radius: 4px;
+
+                // Phase 3.1: Smooth hover animation
+                animate background { duration: 150ms; easing: ease-out; }
+
+                states [
+                    hover when ignore-touch.has-hover: {
+                        background: Colors.surface-hover;
+                    }
+                ]
+
+                ignore-touch := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.action-clicked("ignore");
+                    }
+                }
+
+                HorizontalBox {
+                    padding-left: 8px;
+                    spacing: 8px;
+
+                    Text {
+                        text: "🚫";
+                        font-size: 14px;
+                        vertical-alignment: center;
+                    }
+
+                    Text {
+                        text: "Ignore";
+                        font-size: Typography.body-size;
+                        color: Colors.text-primary;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // Open action
+            Rectangle {
+                height: 32px;
+                background: transparent;
+                border-radius: 4px;
+
+                // Phase 3.1: Smooth hover animation
+                animate background { duration: 150ms; easing: ease-out; }
+
+                states [
+                    hover when open-touch.has-hover: {
+                        background: Colors.surface-hover;
+                    }
+                ]
+
+                open-touch := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.action-clicked("open");
+                    }
+                }
+
+                HorizontalBox {
+                    padding-left: 8px;
+                    spacing: 8px;
+
+                    Text {
+                        text: "📂";
+                        font-size: 14px;
+                        vertical-alignment: center;
+                    }
+
+                    Text {
+                        text: "Open";
+                        font-size: Typography.body-size;
+                        color: Colors.text-primary;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -262,8 +441,10 @@ export struct FileRowData {
 component FileTableRow inherits Rectangle {
     in property <FileRowData> row-data;
     in property <bool> selected: false;
+    in-out property <bool> show-menu: false; // Phase 2.3: Context menu state
 
     callback clicked();
+    callback action-requested(string); // Phase 2.3: "ignore" or "open"
 
     height: 36px;
     background: row-data.is-bad ? #8b0000 :  // Dark red for corrupted files
@@ -286,7 +467,7 @@ component FileTableRow inherits Rectangle {
 
         // File Name column
         Rectangle {
-            width: 35%;
+            width: 32%;
             Text {
                 text: row-data.file-name;
                 font-size: Typography.body-size;
@@ -300,7 +481,7 @@ component FileTableRow inherits Rectangle {
 
         // File Size column
         Rectangle {
-            width: 20%;
+            width: 18%;
             Text {
                 text: row-data.file-size;
                 font-size: Typography.body-size;
@@ -326,7 +507,7 @@ component FileTableRow inherits Rectangle {
 
         // Mod Name column
         Rectangle {
-            width: 30%;
+            width: 28%;
             Text {
                 text: row-data.mod-name;
                 font-size: Typography.body-size;
@@ -336,6 +517,55 @@ component FileTableRow inherits Rectangle {
                 overflow: elide;
                 x: 12px;
             }
+        }
+
+        // Phase 2.3: Actions button (three dots)
+        Rectangle {
+            width: 7%;
+
+            actions-button := Rectangle {
+                width: 28px;
+                height: 28px;
+                border-radius: 4px;
+                background: transparent;
+                x: parent.width / 2 - self.width / 2;
+
+                states [
+                    hover when actions-touch.has-hover: {
+                        background: Colors.surface-hover;
+                    }
+                    active when show-menu: {
+                        background: Colors.sidebar-selected;
+                    }
+                ]
+
+                actions-touch := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        show-menu = !show-menu;
+                    }
+                }
+
+                Text {
+                    text: "⋮";
+                    font-size: 18px;
+                    font-weight: 700;
+                    color: row-data.is-bad ? #ffffff : Colors.text-primary;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+        }
+    }
+
+    // Phase 2.3: Context menu overlay
+    ContextMenu {
+        show: show-menu;
+        menu-x: root.width - 130px;
+        menu-y: 36px;
+        action-clicked(action) => {
+            show-menu = false;
+            root.action-requested(action);
         }
     }
 }
@@ -351,10 +581,46 @@ component ExtractionScreen inherits Rectangle {
     in-out property <bool> extracting: false;
     in-out property <int> selected-row: -1;
 
+    // Phase 2.3: Threshold filtering
+    in-out property <string> threshold-value: "";
+    in-out property <bool> auto-threshold: false;
+
+    // Phase 2.3: Post-extraction state
+    in-out property <bool> extraction-complete: false;
+    in-out property <string> extraction-folder: "";
+
+    // Phase 2.3: Extraction progress tracking
+    in-out property <string> current-extracting-file: "";
+    in-out property <int> extraction-progress: 0; // 0-100
+    in-out property <int> current-file-index: 0;
+    in-out property <int> total-extraction-files: 0;
+
+    // Phase 2.3: Extraction speed and ETA
+    in-out property <string> extraction-speed: "";
+    in-out property <string> extraction-eta: "";
+
+    // Phase 2.3: Pause/cancel state
+    in-out property <bool> paused: false;
+
     callback browse-folder();
     callback start-scan();
     callback start-extraction();
     callback sort-by-column(int);
+
+    // Phase 2.3: Threshold callbacks
+    callback threshold-changed(string);
+    callback auto-threshold-toggled(bool);
+
+    // Phase 2.3: File action callback (ignore, open)
+    callback file-action(int, string); // (row_index, action)
+
+    // Phase 2.3: Post-extraction callback
+    callback open-extraction-folder();
+
+    // Phase 2.3: Pause/cancel callbacks
+    callback pause-extraction();
+    callback resume-extraction();
+    callback cancel-extraction();
 
     background: Colors.background;
 
@@ -428,6 +694,110 @@ component ExtractionScreen inherits Rectangle {
             }
         }
 
+        // Phase 2.3: Threshold filtering section
+        Rectangle {
+            height: 80px;
+            background: Colors.surface;
+            border-radius: 8px;
+
+            VerticalBox {
+                padding: 16px;
+                spacing: 8px;
+
+                Text {
+                    text: "Size Threshold (Optional)";
+                    font-size: Typography.body-size;
+                    font-weight: 600;
+                    color: Colors.text-primary;
+                }
+
+                HorizontalBox {
+                    spacing: 8px;
+
+                    // Threshold input
+                    Rectangle {
+                        width: 200px;
+                        height: 32px;
+                        background: auto-threshold ? Colors.border : Colors.background;
+                        border-radius: 4px;
+                        border-width: 1px;
+                        border-color: Colors.border;
+
+                        HorizontalBox {
+                            padding-left: 12px;
+                            padding-right: 12px;
+
+                            TextInput {
+                                text <=> threshold-value;
+                                font-size: Typography.body-size;
+                                color: Colors.text-primary;
+                                enabled: !auto-threshold && !scanning && !extracting;
+                                vertical-alignment: center;
+                                accepted => {
+                                    threshold-changed(self.text);
+                                }
+                                edited => {
+                                    threshold-changed(self.text);
+                                }
+                            }
+                        }
+
+                        // Placeholder text (shown when input is empty)
+                        if threshold-value == "": Text {
+                            text: "e.g., 500MB";
+                            font-size: Typography.body-size;
+                            color: Colors.text-secondary;
+                            vertical-alignment: center;
+                            x: 12px;
+                        }
+                    }
+
+                    // Auto-threshold toggle button
+                    Rectangle {
+                        width: 80px;
+                        height: 32px;
+                        background: auto-threshold ? Colors.accent : Colors.surface-hover;
+                        border-radius: 4px;
+                        border-width: 1px;
+                        border-color: auto-threshold ? Colors.accent : Colors.border;
+
+                        states [
+                            hover when touch.has-hover && !scanning && !extracting: {
+                                background: auto-threshold ? Colors.accent-hover : Colors.surface-hover;
+                            }
+                        ]
+
+                        touch := TouchArea {
+                            enabled: !scanning && !extracting;
+                            mouse-cursor: self.enabled ? pointer : default;
+                            clicked => {
+                                auto-threshold = !auto-threshold;
+                                auto-threshold-toggled(auto-threshold);
+                            }
+                        }
+
+                        Text {
+                            text: "Auto";
+                            font-size: Typography.body-size;
+                            font-weight: 600;
+                            color: auto-threshold ? #ffffff : Colors.text-primary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    // Help text
+                    Text {
+                        text: "Extract only files smaller than threshold (Auto: calc for 235 BA2 limit)";
+                        font-size: Typography.caption-size;
+                        color: Colors.text-secondary;
+                        vertical-alignment: center;
+                        horizontal-stretch: 1;
+                    }
+                }
+            }
+        }
+
         // File preview table
         Rectangle {
             vertical-stretch: 1;
@@ -495,6 +865,9 @@ component ExtractionScreen inherits Rectangle {
                             clicked => {
                                 selected-row = idx;
                             }
+                            action-requested(action) => {
+                                root.file-action(idx, action);
+                            }
                         }
 
                         // Empty state
@@ -536,6 +909,58 @@ component ExtractionScreen inherits Rectangle {
                         color: Colors.text-primary;
                     }
 
+                    // Phase 2.3: Extraction progress bar
+                    if extracting && total-extraction-files > 0: Rectangle {
+                        height: 24px;
+
+                        VerticalBox {
+                            spacing: 4px;
+
+                            // Progress text with file info
+                            Text {
+                                text: "Extracting: " + current-extracting-file + " (" + current-file-index + "/" + total-extraction-files + ")";
+                                font-size: Typography.caption-size;
+                                color: Colors.text-secondary;
+                                overflow: elide;
+                            }
+
+                            // Phase 2.3: Speed and ETA info
+                            if extraction-speed != "" || extraction-eta != "": HorizontalBox {
+                                spacing: 16px;
+
+                                if extraction-speed != "": Text {
+                                    text: "Speed: " + extraction-speed;
+                                    font-size: Typography.caption-size;
+                                    color: Colors.text-secondary;
+                                }
+
+                                if extraction-eta != "": Text {
+                                    text: "ETA: " + extraction-eta;
+                                    font-size: Typography.caption-size;
+                                    color: Colors.text-secondary;
+                                }
+                            }
+
+                            // Progress bar (Phase 3.1: Enhanced with smooth animation)
+                            Rectangle {
+                                height: 4px;
+                                background: Colors.border;
+                                border-radius: 2px;
+
+                                // Progress fill
+                                Rectangle {
+                                    width: parent.width * extraction-progress / 100;
+                                    height: parent.height;
+                                    background: Colors.accent;
+                                    border-radius: 2px;
+
+                                    // Phase 3.1: Smooth progress animation
+                                    animate width { duration: 300ms; easing: ease-out; }
+                                }
+                            }
+                        }
+                    }
+
                     HorizontalBox {
                         spacing: 16px;
 
@@ -561,67 +986,1171 @@ component ExtractionScreen inherits Rectangle {
                     enabled: file-list.length > 0 && !scanning && !extracting;
                     clicked => { start-extraction(); }
                 }
+
+                // Phase 2.3: Pause/Resume button (shows during extraction)
+                if extracting: FluentButton {
+                    text: paused ? "Resume" : "Pause";
+                    width: 100px;
+                    enabled: true;
+                    clicked => {
+                        if (paused) {
+                            resume-extraction();
+                        } else {
+                            pause-extraction();
+                        }
+                    }
+                }
+
+                // Phase 2.3: Cancel button (shows during extraction)
+                if extracting: FluentButton {
+                    text: "Cancel";
+                    width: 100px;
+                    enabled: true;
+                    clicked => { cancel-extraction(); }
+                }
+
+                // Phase 2.3: Open Folder button (shows after extraction completes)
+                if extraction-complete: FluentButton {
+                    text: "Open Folder";
+                    width: 130px;
+                    enabled: !scanning && !extracting;
+                    clicked => { open-extraction-folder(); }
+                }
             }
         }
     }
 }
 
-// Check Files Screen (placeholder)
-component CheckFilesScreen inherits Rectangle {
-    background: Colors.background;
+// ========== Reusable Components ==========
 
-    VerticalBox {
-        padding: 24px;
+// Toggle switch component (used in Settings and Validation screens)
+component SettingsToggle inherits Rectangle {
+    in property <string> label;
+    in property <string> description: "";
+    in-out property <bool> checked: false;
+
+    callback toggled();
+
+    height: description == "" ? 40px : 60px;
+
+    HorizontalBox {
         spacing: 16px;
 
-        Text {
-            text: "Check Files Screen";
-            font-size: Typography.title-size;
-            font-weight: 600;
-            color: Colors.text-primary;
+        // Label and description
+        VerticalLayout {
+            horizontal-stretch: 1;
+            spacing: 4px;
+
+            Text {
+                text: label;
+                font-size: Typography.body-size;
+                color: Colors.text-primary;
+                vertical-alignment: center;
+            }
+
+            if description != "": Text {
+                text: description;
+                font-size: Typography.caption-size;
+                color: Colors.text-secondary;
+                wrap: word-wrap;
+            }
         }
 
-        Text {
-            text: "This screen will allow you to validate BA2 files for corruption.";
-            font-size: Typography.body-size;
-            color: Colors.text-secondary;
-            wrap: word-wrap;
-        }
+        // Toggle switch
+        Rectangle {
+            width: 44px;
+            height: 24px;
+            border-radius: 12px;
+            background: checked ? Colors.accent : Colors.border;
 
-        Text {
-            text: "Implementation coming in Phase 2.1";
-            font-size: Typography.caption-size;
-            color: Colors.text-secondary;
+            animate background {
+                duration: 200ms;
+                easing: ease-in-out;
+            }
+
+            // Toggle knob
+            Rectangle {
+                width: 18px;
+                height: 18px;
+                border-radius: 9px;
+                background: #ffffff;
+                x: checked ? 22px : 3px;
+                y: 3px;
+
+                animate x {
+                    duration: 200ms;
+                    easing: ease-in-out;
+                }
+            }
+
+            TouchArea {
+                mouse-cursor: pointer;
+                clicked => {
+                    root.checked = !root.checked;
+                    root.toggled();
+                }
+            }
         }
     }
 }
 
-// Settings Screen (placeholder)
-component SettingsScreen inherits Rectangle {
+// Check Files Screen (Phase 2.1 - File Validation)
+component CheckFilesScreen inherits Rectangle {
+    in-out property <string> validation-folder: "";
+    in-out property <bool> deep-scan: false;
+    in-out property <string> validation-results: "";
+    in-out property <bool> is-validating: false;
+    in-out property <int> files-checked: 0;
+    in-out property <int> total-files-to-check: 0;
+    in-out property <int> corrupted-count: 0;
+    in-out property <string> status-message: "Ready to validate BA2 files";
+
+    callback browse-validation-folder();
+    callback start-validation();
+    callback cancel-validation();
+
     background: Colors.background;
 
     VerticalBox {
         padding: 24px;
         spacing: 16px;
 
+        // Title
         Text {
-            text: "Settings Screen";
+            text: "BA2 File Validation";
             font-size: Typography.title-size;
             font-weight: 600;
             color: Colors.text-primary;
         }
 
+        // Folder selection area
+        Rectangle {
+            height: 100px;
+            background: Colors.surface;
+            border-radius: 8px;
+
+            VerticalBox {
+                padding: 16px;
+                spacing: 8px;
+
+                Text {
+                    text: "Select Folder to Validate";
+                    font-size: Typography.body-size;
+                    font-weight: 600;
+                    color: Colors.text-primary;
+                }
+
+                HorizontalBox {
+                    spacing: 8px;
+
+                    // Folder path display
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        height: 32px;
+                        background: Colors.background;
+                        border-radius: 4px;
+
+                        Text {
+                            text: validation-folder == "" ? "No folder selected" : validation-folder;
+                            font-size: Typography.body-size;
+                            color: validation-folder == "" ? Colors.text-secondary : Colors.text-primary;
+                            vertical-alignment: center;
+                            horizontal-alignment: left;
+                            x: 12px;
+                            overflow: elide;
+                        }
+                    }
+
+                    // Browse button
+                    FluentButton {
+                        text: "Browse...";
+                        width: 100px;
+                        enabled: !is-validating;
+                        clicked => { browse-validation-folder(); }
+                    }
+                }
+
+                // Deep scan toggle
+                SettingsToggle {
+                    label: "Deep Scan";
+                    description: "Extract and verify files (slower but thorough)";
+                    checked <=> deep-scan;
+                    toggled => { }
+                }
+            }
+        }
+
+        // Results area
+        Rectangle {
+            vertical-stretch: 1;
+            background: Colors.surface;
+            border-radius: 8px;
+
+            VerticalBox {
+                padding: 16px;
+                spacing: 8px;
+
+                Text {
+                    text: "Validation Results";
+                    font-size: Typography.body-size;
+                    font-weight: 600;
+                    color: Colors.text-primary;
+                }
+
+                // Results text area
+                ScrollView {
+                    vertical-stretch: 1;
+
+                    Rectangle {
+                        width: 100%;
+                        background: Colors.background;
+                        border-radius: 4px;
+                        min-height: 200px;
+
+                        Text {
+                            text: validation-results == "" ?
+                                  "No validation results yet. Select a folder and click 'Start Validation'." :
+                                  validation-results;
+                            font-size: Typography.caption-size;
+                            color: validation-results == "" ? Colors.text-secondary : Colors.text-primary;
+                            wrap: word-wrap;
+                            x: 12px;
+                            y: 12px;
+                            width: parent.width - 24px;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Status and action area
+        Rectangle {
+            height: 100px;
+            background: Colors.surface;
+            border-radius: 8px;
+
+            VerticalBox {
+                padding: 16px;
+                spacing: 12px;
+
+                // Progress info
+                HorizontalBox {
+                    spacing: 16px;
+
+                    Text {
+                        text: status-message;
+                        font-size: Typography.body-size;
+                        font-weight: 600;
+                        color: Colors.text-primary;
+                        horizontal-stretch: 1;
+                    }
+
+                    if is-validating: Text {
+                        text: files-checked + " / " + total-files-to-check + " files checked";
+                        font-size: Typography.caption-size;
+                        color: Colors.text-secondary;
+                    }
+                }
+
+                // Summary stats
+                if corrupted-count > 0: HorizontalBox {
+                    spacing: 8px;
+
+                    Text {
+                        text: "⚠";
+                        font-size: 16px;
+                        color: Colors.warning;
+                        vertical-alignment: center;
+                    }
+
+                    Text {
+                        text: corrupted-count + " corrupted file(s) found";
+                        font-size: Typography.body-size;
+                        color: Colors.warning;
+                        font-weight: 600;
+                        vertical-alignment: center;
+                    }
+                }
+
+                // Action buttons
+                HorizontalBox {
+                    spacing: 8px;
+                    alignment: end;
+
+                    if is-validating: FluentButton {
+                        text: "Cancel";
+                        width: 100px;
+                        clicked => { cancel-validation(); }
+                    }
+
+                    FluentButton {
+                        text: is-validating ? "Validating..." : "Start Validation";
+                        width: 150px;
+                        primary: true;
+                        enabled: validation-folder != "" && !is-validating;
+                        clicked => { start-validation(); }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ========== Settings Screen Components (Phase 2.2) ==========
+
+// Settings section header
+component SettingsSection inherits Rectangle {
+    in property <string> title;
+
+    height: 40px;
+
+    Text {
+        text: title;
+        font-size: Typography.subtitle-size;
+        font-weight: 600;
+        color: Colors.text-primary;
+        vertical-alignment: center;
+        x: 0px;
+    }
+}
+
+// Settings text input component
+component SettingsInput inherits Rectangle {
+    in property <string> label;
+    in property <string> placeholder: "";
+    in-out property <string> value: "";
+
+    callback changed(string);
+
+    height: 70px;
+
+    VerticalBox {
+        spacing: 8px;
+
         Text {
-            text: "This screen will allow you to configure application settings.";
+            text: label;
             font-size: Typography.body-size;
-            color: Colors.text-secondary;
+            font-weight: 600;
+            color: Colors.text-primary;
+        }
+
+        Rectangle {
+            height: 32px;
+            background: Colors.background;
+            border-radius: 4px;
+            border-width: 1px;
+            border-color: input-focus.has-focus ? Colors.accent : Colors.border;
+
+            animate border-color {
+                duration: 200ms;
+            }
+
+            input-focus := TextInput {
+                text <=> value;
+                font-size: Typography.body-size;
+                color: Colors.text-primary;
+                selection-background-color: Colors.accent;
+                selection-foreground-color: #ffffff;
+                x: 8px;
+                width: parent.width - 16px;
+                vertical-alignment: center;
+
+                // Note: Placeholder not directly supported in Slint TextInput
+                // We'll show the placeholder via conditional Text element instead
+                edited => {
+                    root.changed(self.text);
+                }
+            }
+        }
+    }
+}
+
+// Settings dropdown/combo box component
+component SettingsComboBox inherits Rectangle {
+    in property <string> label;
+    in property <[string]> model: [];
+    in-out property <int> current-index: 0;
+
+    callback selected(int);
+
+    height: 70px;
+
+    VerticalBox {
+        spacing: 8px;
+
+        Text {
+            text: label;
+            font-size: Typography.body-size;
+            font-weight: 600;
+            color: Colors.text-primary;
+        }
+
+        Rectangle {
+            height: 32px;
+            background: Colors.surface;
+            border-radius: 4px;
+            border-width: 1px;
+            border-color: Colors.border;
+
+            states [
+                hover when touch.has-hover: {
+                    background: Colors.surface-hover;
+                }
+            ]
+
+            HorizontalBox {
+                padding: 8px;
+                spacing: 8px;
+
+                Text {
+                    text: current-index >= 0 && current-index < model.length ?
+                          model[current-index] : "";
+                    font-size: Typography.body-size;
+                    color: Colors.text-primary;
+                    horizontal-stretch: 1;
+                    vertical-alignment: center;
+                }
+
+                Text {
+                    text: "▼";
+                    font-size: 10px;
+                    color: Colors.text-secondary;
+                    vertical-alignment: center;
+                }
+            }
+
+            touch := TouchArea {
+                mouse-cursor: pointer;
+                // Note: Actual dropdown implementation would need popup logic
+                // For MVP, this is styled but functionality deferred
+            }
+        }
+    }
+}
+
+// Settings Screen
+component SettingsScreen inherits Rectangle {
+    // Configuration properties (to be bound from Rust)
+    in-out property <string> postfixes-value: "- Textures";
+    in-out property <string> ignored-files-value: "";
+    in-out property <bool> ignore-bad-files: false;
+    in-out property <bool> auto-backup: false;
+    in-out property <int> theme-mode: 0; // 0: Light, 1: Dark, 2: System
+    in-out property <int> language: 0; // 0: Auto, 1: EN, 2: 中文简体, 3: 中文繁體
+    in-out property <bool> check-updates: true;
+    in-out property <bool> show-debug: false;
+    in-out property <string> extraction-path: "";
+    in-out property <string> backup-path: "";
+    in-out property <string> external-tool-path: "";
+
+    // Callbacks
+    callback setting-changed(string, string);
+    callback toggle-changed(string, bool);
+    callback browse-extraction-path();
+    callback browse-backup-path();
+    callback browse-external-tool();
+    callback reset-settings();
+    callback check-for-updates();
+
+    background: Colors.background;
+
+    ScrollView {
+        VerticalBox {
+            padding: 24px;
+            spacing: 24px;
+
+            // Title
+            Text {
+                text: "Settings";
+                font-size: Typography.title-size;
+                font-weight: 600;
+                color: Colors.text-primary;
+            }
+
+            // Extraction Settings Section
+            SettingsSection {
+                title: "Extraction Settings";
+            }
+
+            Rectangle {
+                background: Colors.surface;
+                border-radius: 8px;
+
+                VerticalBox {
+                    padding: 16px;
+                    spacing: 16px;
+
+                    SettingsInput {
+                        label: "Postfixes";
+                        placeholder: "e.g., - Textures, - Main";
+                        value <=> postfixes-value;
+                        changed(val) => {
+                            setting-changed("postfixes", val);
+                        }
+                    }
+
+                    SettingsInput {
+                        label: "Ignored Files (regex supported)";
+                        placeholder: "e.g., *.txt, temp.*";
+                        value <=> ignored-files-value;
+                        changed(val) => {
+                            setting-changed("ignored_files", val);
+                        }
+                    }
+
+                    SettingsToggle {
+                        label: "Ignore Bad Files";
+                        description: "Skip corrupted BA2 files during extraction";
+                        checked <=> ignore-bad-files;
+                        toggled => {
+                            toggle-changed("ignore_bad_files", self.checked);
+                        }
+                    }
+
+                    SettingsToggle {
+                        label: "Auto Backup";
+                        description: "Automatically backup files before extraction";
+                        checked <=> auto-backup;
+                        toggled => {
+                            toggle-changed("auto_backup", self.checked);
+                        }
+                    }
+                }
+            }
+
+            // Personalization Section
+            SettingsSection {
+                title: "Personalization";
+            }
+
+            Rectangle {
+                background: Colors.surface;
+                border-radius: 8px;
+
+                VerticalBox {
+                    padding: 16px;
+                    spacing: 16px;
+
+                    SettingsComboBox {
+                        label: "Theme Mode";
+                        model: ["Light", "Dark", "System"];
+                        current-index <=> theme-mode;
+                    }
+
+                    SettingsComboBox {
+                        label: "Language";
+                        model: ["Auto", "English", "中文简体", "中文繁體"];
+                        current-index <=> language;
+                    }
+                }
+            }
+
+            // Update Settings Section
+            SettingsSection {
+                title: "Updates";
+            }
+
+            Rectangle {
+                background: Colors.surface;
+                border-radius: 8px;
+
+                VerticalBox {
+                    padding: 16px;
+                    spacing: 16px;
+
+                    SettingsToggle {
+                        label: "Check for Updates at Startup";
+                        checked <=> check-updates;
+                        toggled => {
+                            toggle-changed("check_updates", self.checked);
+                        }
+                    }
+
+                    // Manual update check button (Phase 2.6)
+                    HorizontalBox {
+                        spacing: 8px;
+                        alignment: start;
+
+                        FluentButton {
+                            text: "Check for Updates Now";
+                            width: 180px;
+                            primary: false;
+                            clicked => {
+                                check-for-updates();
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Advanced Settings Section
+            SettingsSection {
+                title: "Advanced";
+            }
+
+            Rectangle {
+                background: Colors.surface;
+                border-radius: 8px;
+
+                VerticalBox {
+                    padding: 16px;
+                    spacing: 16px;
+
+                    SettingsToggle {
+                        label: "Show Debug Log";
+                        description: "Display debug information in the console";
+                        checked <=> show-debug;
+                        toggled => {
+                            toggle-changed("show_debug", self.checked);
+                        }
+                    }
+
+                    // Extraction Path
+                    VerticalLayout {
+                        spacing: 8px;
+
+                        Text {
+                            text: "Extraction Path";
+                            font-size: Typography.body-size;
+                            font-weight: 600;
+                            color: Colors.text-primary;
+                        }
+
+                        HorizontalBox {
+                            spacing: 8px;
+
+                            Rectangle {
+                                horizontal-stretch: 1;
+                                height: 32px;
+                                background: Colors.background;
+                                border-radius: 4px;
+
+                                Text {
+                                    text: extraction-path == "" ? "Default location" : extraction-path;
+                                    font-size: Typography.body-size;
+                                    color: extraction-path == "" ? Colors.text-secondary : Colors.text-primary;
+                                    vertical-alignment: center;
+                                    x: 8px;
+                                    overflow: elide;
+                                }
+                            }
+
+                            FluentButton {
+                                text: "Browse...";
+                                width: 100px;
+                                clicked => {
+                                    browse-extraction-path();
+                                }
+                            }
+                        }
+                    }
+
+                    // Backup Path
+                    VerticalLayout {
+                        spacing: 8px;
+
+                        Text {
+                            text: "Backup Path";
+                            font-size: Typography.body-size;
+                            font-weight: 600;
+                            color: Colors.text-primary;
+                        }
+
+                        HorizontalBox {
+                            spacing: 8px;
+
+                            Rectangle {
+                                horizontal-stretch: 1;
+                                height: 32px;
+                                background: Colors.background;
+                                border-radius: 4px;
+
+                                Text {
+                                    text: backup-path == "" ? "Default location" : backup-path;
+                                    font-size: Typography.body-size;
+                                    color: backup-path == "" ? Colors.text-secondary : Colors.text-primary;
+                                    vertical-alignment: center;
+                                    x: 8px;
+                                    overflow: elide;
+                                }
+                            }
+
+                            FluentButton {
+                                text: "Browse...";
+                                width: 100px;
+                                clicked => {
+                                    browse-backup-path();
+                                }
+                            }
+                        }
+                    }
+
+                    // External BA2 Tool
+                    VerticalLayout {
+                        spacing: 8px;
+
+                        Text {
+                            text: "External BA2 Tool (BSArch.exe)";
+                            font-size: Typography.body-size;
+                            font-weight: 600;
+                            color: Colors.text-primary;
+                        }
+
+                        HorizontalBox {
+                            spacing: 8px;
+
+                            Rectangle {
+                                horizontal-stretch: 1;
+                                height: 32px;
+                                background: Colors.background;
+                                border-radius: 4px;
+
+                                Text {
+                                    text: external-tool-path == "" ? "Using bundled BSArch.exe" : external-tool-path;
+                                    font-size: Typography.body-size;
+                                    color: external-tool-path == "" ? Colors.text-secondary : Colors.text-primary;
+                                    vertical-alignment: center;
+                                    x: 8px;
+                                    overflow: elide;
+                                }
+                            }
+
+                            FluentButton {
+                                text: "Browse...";
+                                width: 100px;
+                                clicked => {
+                                    browse-external-tool();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // About Section
+            SettingsSection {
+                title: "About";
+            }
+
+            Rectangle {
+                background: Colors.surface;
+                border-radius: 8px;
+
+                VerticalBox {
+                    padding: 16px;
+                    spacing: 12px;
+
+                    Text {
+                        text: "Unpackrr - BA2 Batch Unpacker";
+                        font-size: Typography.subtitle-size;
+                        font-weight: 600;
+                        color: Colors.text-primary;
+                    }
+
+                    Text {
+                        text: "Version 0.1.0 (Rust Edition)";
+                        font-size: Typography.body-size;
+                        color: Colors.text-secondary;
+                    }
+
+                    Rectangle { height: 8px; }
+
+                    Text {
+                        text: "Original Author";
+                        font-size: Typography.body-size;
+                        font-weight: 600;
+                        color: Colors.text-primary;
+                    }
+
+                    Text {
+                        text: "KazumaKuun / Southwest Codeworks";
+                        font-size: Typography.body-size;
+                        color: Colors.text-secondary;
+                    }
+
+                    Rectangle { height: 8px; }
+
+                    Text {
+                        text: "Current Maintainer";
+                        font-size: Typography.body-size;
+                        font-weight: 600;
+                        color: Colors.text-primary;
+                    }
+
+                    Text {
+                        text: "evildarkarchon";
+                        font-size: Typography.body-size;
+                        color: Colors.text-secondary;
+                    }
+
+                    Rectangle { height: 8px; }
+
+                    Text {
+                        text: "License";
+                        font-size: Typography.body-size;
+                        font-weight: 600;
+                        color: Colors.text-primary;
+                    }
+
+                    Text {
+                        text: "Application: GPL-3.0\nBSArch.exe: MPL-2.0 (bundled third-party tool)";
+                        font-size: Typography.caption-size;
+                        color: Colors.text-secondary;
+                        wrap: word-wrap;
+                    }
+
+                    Rectangle { height: 8px; }
+
+                    Text {
+                        text: "BSArch.exe by TES5Edit Team";
+                        font-size: Typography.caption-size;
+                        color: Colors.text-secondary;
+                    }
+
+                    Text {
+                        text: "© 2024-2025";
+                        font-size: Typography.caption-size;
+                        color: Colors.text-secondary;
+                    }
+                }
+            }
+
+            // Reset button
+            HorizontalBox {
+                alignment: end;
+
+                FluentButton {
+                    text: "Reset to Defaults";
+                    width: 150px;
+                    clicked => {
+                        reset-settings();
+                    }
+                }
+            }
+
+            // Bottom padding
+            Rectangle { height: 24px; }
+        }
+    }
+}
+
+// ========== Notifications & Dialogs (Phase 2.7) ==========
+
+// Notification types enum
+export enum NotificationType {
+    Success,
+    Error,
+    Warning,
+    Info,
+}
+
+// Toast notification component (InfoBar equivalent)
+export component ToastNotification inherits Rectangle {
+    in property <string> message;
+    in property <NotificationType> notification-type: NotificationType.Info;
+    in-out property <bool> show: false;
+
+    callback dismiss();
+
+    width: 400px;
+    height: show ? 60px : 0px;
+    border-radius: 8px;
+
+    // Background color based on notification type
+    background: notification-type == NotificationType.Success ? Colors.success :
+                notification-type == NotificationType.Error ? Colors.danger :
+                notification-type == NotificationType.Warning ? Colors.warning :
+                Colors.accent;
+
+    // Slide-in animation
+    animate height {
+        duration: 200ms;
+        easing: ease-in-out;
+    }
+
+    animate opacity {
+        duration: 200ms;
+        easing: ease-in-out;
+    }
+
+    opacity: show ? 1.0 : 0.0;
+
+    // Content
+    HorizontalBox {
+        padding: 12px;
+        spacing: 12px;
+
+        // Icon
+        Text {
+            text: notification-type == NotificationType.Success ? "✓" :
+                  notification-type == NotificationType.Error ? "✕" :
+                  notification-type == NotificationType.Warning ? "⚠" :
+                  "ⓘ";
+            font-size: 20px;
+            color: #ffffff;
+            vertical-alignment: center;
+        }
+
+        // Message text
+        Text {
+            text: message;
+            font-size: Typography.body-size;
+            color: #ffffff;
+            vertical-alignment: center;
+            horizontal-alignment: left;
+            horizontal-stretch: 1;
             wrap: word-wrap;
         }
 
-        Text {
-            text: "Implementation coming in Phase 2.2";
-            font-size: Typography.caption-size;
-            color: Colors.text-secondary;
+        // Close button
+        Rectangle {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+
+            states [
+                hover when close-touch.has-hover: {
+                    background: rgba(255, 255, 255, 0.2);
+                }
+                pressed when close-touch.pressed: {
+                    background: rgba(255, 255, 255, 0.3);
+                }
+            ]
+
+            close-touch := TouchArea {
+                mouse-cursor: pointer;
+                clicked => {
+                    root.show = false;
+                    root.dismiss();
+                }
+            }
+
+            Text {
+                text: "×";
+                font-size: 20px;
+                color: #ffffff;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+    }
+}
+
+// Modal dialog overlay
+component DialogOverlay inherits Rectangle {
+    in property <bool> show: false;
+
+    background: rgba(0, 0, 0, 0.5);
+    opacity: show ? 1.0 : 0.0;
+
+    animate opacity {
+        duration: 200ms;
+        easing: ease-in-out;
+    }
+}
+
+// Dialog button styles
+export enum DialogButtonStyle {
+    Primary,
+    Secondary,
+    Danger,
+}
+
+// Dialog button component
+component DialogButton inherits Rectangle {
+    in property <string> text;
+    in property <DialogButtonStyle> button-style: DialogButtonStyle.Secondary;
+
+    callback clicked();
+
+    width: 100px;
+    height: 32px;
+    border-radius: 4px;
+
+    background: button-style == DialogButtonStyle.Primary ? Colors.accent :
+                button-style == DialogButtonStyle.Danger ? Colors.danger :
+                Colors.surface;
+
+    states [
+        hover when touch.has-hover: {
+            background: button-style == DialogButtonStyle.Primary ? Colors.accent-hover :
+                       button-style == DialogButtonStyle.Danger ? #c92a2e :
+                       Colors.surface-hover;
+        }
+        pressed when touch.pressed: {
+            background: button-style == DialogButtonStyle.Primary ? Colors.accent-pressed :
+                       button-style == DialogButtonStyle.Danger ? #a51d20 :
+                       Colors.border;
+        }
+    ]
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+
+    Text {
+        text: root.text;
+        font-size: Typography.body-size;
+        color: (button-style == DialogButtonStyle.Primary || button-style == DialogButtonStyle.Danger) ?
+               #ffffff : Colors.text-primary;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}
+
+// Modal dialog component
+export component MessageDialog inherits Rectangle {
+    in property <string> title;
+    in property <string> message;
+    in property <NotificationType> dialog-type: NotificationType.Info;
+    in property <string> primary-button-text: "OK";
+    in property <string> secondary-button-text: "";
+    in-out property <bool> show: false;
+
+    callback primary-action();
+    callback secondary-action();
+    callback closed();
+
+    width: 100%;
+    height: 100%;
+
+    // Backdrop overlay
+    if show: DialogOverlay {
+        width: 100%;
+        height: 100%;
+        show: root.show;
+
+        TouchArea {
+            // Prevent clicks from passing through to content behind
+        }
+    }
+
+    // Centered dialog box
+    if show: Rectangle {
+        width: 450px;
+        height: content-height;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+
+        background: Colors.surface;
+        border-radius: 8px;
+        drop-shadow-blur: 20px;
+        drop-shadow-color: rgba(0, 0, 0, 0.3);
+        drop-shadow-offset-y: 10px;
+
+        property <length> content-height: 200px;
+
+        // Scale animation
+        animate width, height {
+            duration: 200ms;
+            easing: ease-out;
+        }
+
+        VerticalBox {
+            padding: 24px;
+            spacing: 16px;
+
+            // Title with icon
+            HorizontalBox {
+                spacing: 12px;
+
+                // Icon
+                Text {
+                    text: dialog-type == NotificationType.Success ? "✓" :
+                          dialog-type == NotificationType.Error ? "✕" :
+                          dialog-type == NotificationType.Warning ? "⚠" :
+                          "ⓘ";
+                    font-size: 24px;
+                    color: dialog-type == NotificationType.Success ? Colors.success :
+                           dialog-type == NotificationType.Error ? Colors.danger :
+                           dialog-type == NotificationType.Warning ? Colors.warning :
+                           Colors.accent;
+                    vertical-alignment: center;
+                }
+
+                // Title text
+                Text {
+                    text: title;
+                    font-size: Typography.subtitle-size;
+                    font-weight: 600;
+                    color: Colors.text-primary;
+                    vertical-alignment: center;
+                    horizontal-stretch: 1;
+                }
+            }
+
+            // Message
+            Text {
+                text: message;
+                font-size: Typography.body-size;
+                color: Colors.text-primary;
+                wrap: word-wrap;
+                horizontal-stretch: 1;
+            }
+
+            // Spacer
+            Rectangle {
+                height: 8px;
+            }
+
+            // Buttons
+            HorizontalBox {
+                spacing: 8px;
+                alignment: end;
+
+                // Secondary button (optional)
+                if secondary-button-text != "": DialogButton {
+                    text: secondary-button-text;
+                    button-style: DialogButtonStyle.Secondary;
+                    clicked => {
+                        root.show = false;
+                        root.secondary-action();
+                        root.closed();
+                    }
+                }
+
+                // Primary button
+                DialogButton {
+                    text: primary-button-text;
+                    button-style: dialog-type == NotificationType.Error ||
+                                 dialog-type == NotificationType.Warning ?
+                                 DialogButtonStyle.Danger :
+                                 DialogButtonStyle.Primary;
+                    clicked => {
+                        root.show = false;
+                        root.primary-action();
+                        root.closed();
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Toast notification container (manages multiple toasts)
+export component ToastContainer inherits Rectangle {
+    in-out property <[{message: string, type: NotificationType, show: bool}]> toasts: [];
+
+    width: 100%;
+    height: 100%;
+
+    // Position toasts at top-right of window
+    VerticalLayout {
+        padding: 16px;
+        spacing: 8px;
+        alignment: start;
+        x: parent.width - self.width - 16px;
+        width: 432px; // 400px + padding
+
+        for toast[idx] in toasts: ToastNotification {
+            message: toast.message;
+            notification-type: toast.type;
+            show: toast.show;
+            dismiss => {
+                // Remove toast from array when dismissed
+                // Note: This will be handled from Rust side
+            }
         }
     }
 }
@@ -635,9 +2164,27 @@ export component MainWindow inherits Window {
     min-height: 500px;
     background: Colors.background;
 
+    // Phase 3.1.3: Store window width for responsive scaling (avoid binding loops)
+    property <length> cached-window-width: 1000px;
+
+    // Phase 3.1.3: Wire window dimensions to Typography for responsive scaling
+    changed width => {
+        cached-window-width = self.width;
+        Typography.window-width = self.width;
+    }
+
+    // Initialize on first render
+    init => {
+        cached-window-width = self.width;
+        Typography.window-width = self.width;
+    }
+
     // Navigation state
     in-out property <int> current-screen: 0;
-    in-out property <bool> dark-mode <=> Colors.dark-mode;
+
+    // Theme settings (Phase 2.4) - bind to Colors global
+    in-out property <int> theme-mode <=> Colors.theme-mode;
+    in-out property <color> accent-color <=> Colors.custom-accent;
 
     // Extraction screen state (exposed for Rust callbacks)
     in-out property <string> selected-folder: "";
@@ -649,11 +2196,94 @@ export component MainWindow inherits Window {
     in-out property <bool> extracting: false;
     in-out property <int> selected-row: -1;
 
+    // Phase 2.3: Threshold filtering state
+    in-out property <string> threshold-value: "";
+    in-out property <bool> auto-threshold: false;
+
+    // Phase 2.3: Post-extraction state
+    in-out property <bool> extraction-complete: false;
+    in-out property <string> extraction-folder: "";
+
+    // Phase 2.3: Extraction progress tracking
+    in-out property <string> current-extracting-file: "";
+    in-out property <int> extraction-progress: 0;
+    in-out property <int> current-file-index: 0;
+    in-out property <int> total-extraction-files: 0;
+
+    // Phase 2.3: Extraction speed and ETA
+    in-out property <string> extraction-speed: "";
+    in-out property <string> extraction-eta: "";
+
+    // Phase 2.3: Pause/cancel state
+    in-out property <bool> paused: false;
+
+    // Notification & Dialog state (Phase 2.7)
+    in-out property <[{message: string, type: NotificationType, show: bool}]> toasts: [];
+    in-out property <bool> show-dialog: false;
+    in-out property <string> dialog-title: "";
+    in-out property <string> dialog-message: "";
+    in-out property <NotificationType> dialog-type: NotificationType.Info;
+    in-out property <string> dialog-primary-button: "OK";
+    in-out property <string> dialog-secondary-button: "";
+
+    // Settings screen state (Phase 2.2)
+    in-out property <string> settings-postfixes: "- Textures";
+    in-out property <string> settings-ignored-files: "";
+    in-out property <bool> settings-ignore-bad: false;
+    in-out property <bool> settings-auto-backup: false;
+    // Note: settings-theme-mode uses root.theme-mode (bound to Colors.theme-mode)
+    in-out property <int> settings-language: 0;
+    in-out property <bool> settings-check-updates: true;
+    in-out property <bool> settings-show-debug: false;
+    in-out property <string> settings-extraction-path: "";
+    in-out property <string> settings-backup-path: "";
+    in-out property <string> settings-external-tool: "";
+
+    // Validation screen state (Phase 2.1)
+    in-out property <string> validation-folder: "";
+    in-out property <bool> validation-deep-scan: false;
+    in-out property <string> validation-results: "";
+    in-out property <bool> is-validating: false;
+    in-out property <int> validation-files-checked: 0;
+    in-out property <int> validation-total-files: 0;
+    in-out property <int> validation-corrupted-count: 0;
+    in-out property <string> validation-status: "Ready to validate BA2 files";
+
     // Extraction screen callbacks (exposed for Rust)
     callback browse-folder();
     callback start-scan();
     callback start-extraction();
     callback sort-by-column(int);
+
+    // Phase 2.3: Threshold filtering callbacks
+    callback threshold-changed(string);
+    callback auto-threshold-toggled(bool);
+    callback file-action(int, string); // (row_index, action: "ignore"|"open")
+    callback open-extraction-folder();
+
+    // Phase 2.3: Pause/cancel callbacks
+    callback pause-extraction();
+    callback resume-extraction();
+    callback cancel-extraction();
+
+    // Notification & Dialog callbacks (Phase 2.7)
+    callback dialog-primary-clicked();
+    callback dialog-secondary-clicked();
+    callback dialog-dismissed();
+
+    // Settings screen callbacks (Phase 2.2)
+    callback settings-changed(string, string);
+    callback settings-toggle-changed(string, bool);
+    callback settings-browse-extraction-path();
+    callback settings-browse-backup-path();
+    callback settings-browse-external-tool();
+    callback settings-reset();
+    callback check-for-updates(); // Phase 2.6
+
+    // Validation screen callbacks (Phase 2.1)
+    callback validation-browse-folder();
+    callback validation-start();
+    callback validation-cancel();
 
     HorizontalBox {
         spacing: 0;
@@ -661,6 +2291,7 @@ export component MainWindow inherits Window {
         // Navigation sidebar
         sidebar := NavigationSidebar {
             selected-index: current-screen;
+            available-width: root.cached-window-width; // Phase 3.1.3: Pass window width for responsiveness
             navigation-changed(index) => {
                 current-screen = index;
             }
@@ -670,8 +2301,14 @@ export component MainWindow inherits Window {
         content := Rectangle {
             background: Colors.background;
 
+            // Phase 3.1: Smooth screen transitions with fade + slide animation
             // Show appropriate screen based on current-screen
             if current-screen == 0: extraction-screen := ExtractionScreen {
+                opacity: current-screen == 0 ? 1.0 : 0.0;
+                x: current-screen == 0 ? 0px : -20px;
+
+                animate opacity { duration: 250ms; easing: ease-in-out; }
+                animate x { duration: 250ms; easing: ease-in-out; }
                 width: 100%;
                 height: 100%;
                 selected-folder <=> root.selected-folder;
@@ -682,20 +2319,99 @@ export component MainWindow inherits Window {
                 scanning <=> root.scanning;
                 extracting <=> root.extracting;
                 selected-row <=> root.selected-row;
+                threshold-value <=> root.threshold-value; // Phase 2.3
+                auto-threshold <=> root.auto-threshold; // Phase 2.3
+                extraction-complete <=> root.extraction-complete; // Phase 2.3
+                extraction-folder <=> root.extraction-folder; // Phase 2.3
+                current-extracting-file <=> root.current-extracting-file; // Phase 2.3
+                extraction-progress <=> root.extraction-progress; // Phase 2.3
+                current-file-index <=> root.current-file-index; // Phase 2.3
+                total-extraction-files <=> root.total-extraction-files; // Phase 2.3
+                extraction-speed <=> root.extraction-speed; // Phase 2.3
+                extraction-eta <=> root.extraction-eta; // Phase 2.3
+                paused <=> root.paused; // Phase 2.3
                 browse-folder => { root.browse-folder(); }
                 start-scan => { root.start-scan(); }
                 start-extraction => { root.start-extraction(); }
                 sort-by-column(col) => { root.sort-by-column(col); }
+                threshold-changed(value) => { root.threshold-changed(value); } // Phase 2.3
+                auto-threshold-toggled(enabled) => { root.auto-threshold-toggled(enabled); } // Phase 2.3
+                file-action(idx, action) => { root.file-action(idx, action); } // Phase 2.3
+                open-extraction-folder => { root.open-extraction-folder(); } // Phase 2.3
+                pause-extraction => { root.pause-extraction(); } // Phase 2.3
+                resume-extraction => { root.resume-extraction(); } // Phase 2.3
+                cancel-extraction => { root.cancel-extraction(); } // Phase 2.3
             }
 
             if current-screen == 1: CheckFilesScreen {
+                opacity: current-screen == 1 ? 1.0 : 0.0;
+                x: current-screen == 1 ? 0px : -20px;
+
+                animate opacity { duration: 250ms; easing: ease-in-out; }
+                animate x { duration: 250ms; easing: ease-in-out; }
                 width: 100%;
                 height: 100%;
+                validation-folder <=> root.validation-folder;
+                deep-scan <=> root.validation-deep-scan;
+                validation-results <=> root.validation-results;
+                is-validating <=> root.is-validating;
+                files-checked <=> root.validation-files-checked;
+                total-files-to-check <=> root.validation-total-files;
+                corrupted-count <=> root.validation-corrupted-count;
+                status-message <=> root.validation-status;
+                browse-validation-folder => { root.validation-browse-folder(); }
+                start-validation => { root.validation-start(); }
+                cancel-validation => { root.validation-cancel(); }
             }
 
             if current-screen == 2: SettingsScreen {
+                opacity: current-screen == 2 ? 1.0 : 0.0;
+                x: current-screen == 2 ? 0px : -20px;
+
+                animate opacity { duration: 250ms; easing: ease-in-out; }
+                animate x { duration: 250ms; easing: ease-in-out; }
                 width: 100%;
                 height: 100%;
+                postfixes-value <=> root.settings-postfixes;
+                ignored-files-value <=> root.settings-ignored-files;
+                ignore-bad-files <=> root.settings-ignore-bad;
+                auto-backup <=> root.settings-auto-backup;
+                theme-mode <=> root.theme-mode; // Phase 2.4: Direct binding to Colors.theme-mode
+                language <=> root.settings-language;
+                check-updates <=> root.settings-check-updates;
+                show-debug <=> root.settings-show-debug;
+                extraction-path <=> root.settings-extraction-path;
+                backup-path <=> root.settings-backup-path;
+                external-tool-path <=> root.settings-external-tool;
+                setting-changed(key, value) => { root.settings-changed(key, value); }
+                toggle-changed(key, value) => { root.settings-toggle-changed(key, value); }
+                browse-extraction-path => { root.settings-browse-extraction-path(); }
+                browse-backup-path => { root.settings-browse-backup-path(); }
+                browse-external-tool => { root.settings-browse-external-tool(); }
+                reset-settings => { root.settings-reset(); }
+                check-for-updates => { root.check-for-updates(); }
+            }
+
+            // Toast notifications overlay
+            toast-overlay := ToastContainer {
+                width: 100%;
+                height: 100%;
+                toasts: root.toasts;
+            }
+
+            // Modal dialog overlay
+            dialog-overlay := MessageDialog {
+                width: 100%;
+                height: 100%;
+                show: root.show-dialog;
+                title: root.dialog-title;
+                message: root.dialog-message;
+                dialog-type: root.dialog-type;
+                primary-button-text: root.dialog-primary-button;
+                secondary-button-text: root.dialog-secondary-button;
+                primary-action => { root.dialog-primary-clicked(); }
+                secondary-action => { root.dialog-secondary-clicked(); }
+                closed => { root.dialog-dismissed(); }
             }
         }
     }
