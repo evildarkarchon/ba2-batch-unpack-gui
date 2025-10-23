@@ -1,103 +1,379 @@
-## What is this?
+# Unpackrr - BA2 Batch Unpacker (Rust Edition)
 
-After two months of development, I present you - the Unpackrr, the evolution of the [original Batch BA2 Unpacker](https://www.nexusmods.com/fallout4/mods/79593/). 
-Unpackrr is a graphical application that automatically extracts extra small ba2 files to keep your LO under BA2 limit 
-(typically 255 files). You can specify your own file size thresholds, manage file extensions, and manage excluded files 
-(w/ regex if you prefer 😎).
+**High-performance BA2 archive manager with Fluent Design UI**
 
-With Unpackrr you can also check your BA2 files for possible corruptions. Corrupted BA2s can cause weird 
-looking/pixelated textures, or crash your game. You can check all BA2s in your mod folder with one click, and you can 
-see which files have failed the check.
+<div align="center">
 
-Unpackrr is intuitive to use and put you in control. You can see all the information at a glance, and you can customize 
-the extraction behavior. Unpackrr keeps you informed and make sure you are aware of any issues. It automatically saves 
-a copy of the ba2 files extracted, just in case something funny happens to your game. It comes in Light/Dark theme, and 
-customizable color. Multi-language support.
+[![License: GPL-3.0](https://img.shields.io/badge/License-GPL%203.0-blue.svg)](LICENSE)
+[![Rust](https://img.shields.io/badge/Rust-2024-orange.svg)](https://www.rust-lang.org/)
+[![Slint](https://img.shields.io/badge/GUI-Slint-blueviolet.svg)](https://slint.dev/)
 
-## How to use
+</div>
 
-Note: this program is intended to be used standalone. I do not know what happens if you install it as a mod 
-in your mod manager.
+---
 
-**If you want to extract ba2 files...**
+## About
 
-Most features are self-explanatory and behaves exactly how you think it works. A typical flow goes like this
+Unpackrr is a powerful graphical application for managing Bethesda Archive 2 (BA2) files used in Fallout 4 and Fallout 76. It automatically extracts small BA2 archives to help you stay under the game's BA2 file limit (typically 255 files), preventing crashes and improving mod compatibility.
 
-1. Select (or drag-and-drop) your Fallout 4 mod folder. It should be your overall mod folder where you can see individual mods.
-   In MO2 it's Open > Open Mods folder. In Vortex, it's Open > Open Mod Staging Folder.
-2. You can see a preview of what is going to be extracted, along with some stats.
-   Double click a file to open it for further inspection, if you have an external BA2 application installed. Right click a file to bring up more options.
-3. (Optional) click "Auto" to have Unpackrr pick a suitable threshold for you to get under BA2 limit, or manually enter a threshold.
-4. Hit "Start" and watch the magic happen :)
+**This is a Rust port** of the [original Python-based Unpackrr](https://github.com/kazum1kun/ba2-batch-unpack-gui) by [KazumaKuun](https://github.com/kazum1kun), rewritten for:
+- **Better Performance**: Native compilation and async I/O for faster processing
+- **Enhanced Reliability**: Rust's memory safety prevents crashes
+- **Modern UI**: Fluent Design interface with light/dark themes
+- **Cross-Platform Readiness**: Built with portability in mind
 
-For fine controls over the extraction, please check the Settings available.
+**Original Author**: KazumaKuun / Southwest Codeworks
+**Current Maintainer**: [evildarkarchon](https://github.com/evildarkarchon)
+**License**: GPL-3.0 (application), MPL-2.0 (bundled BSArch.exe)
 
-**If you want to check for corrupted ba2 files...**
+---
 
-1. Click the "Check Files" tab on the left. Select (or drag-and-drop) your Fallout 4 mod folder.
-2. Hit "Start" and watch the... magic 2 happen :)
+## Features
 
-Optionally, for a more thorough check, enable the "Deep scan" option. Normally Unpackrr checks a ba2 file by listing its 
-file content, during which a corrupted ba2 will return some error. Deep scanning extracts the ba2 file to a temporary 
-location and make sure everything runs correctly. Don't worry, the extracted files are automatically deleted afterward. 
-Normal scans are usually sufficient to uncover corrupted files, as deep scans can take very long to finish.
+### Extraction Management
+- ✅ **Automatic BA2 Extraction** - Keep your load order under the BA2 limit
+- ✅ **Smart Threshold Calculation** - Auto-calculate size thresholds or set manually
+- ✅ **Flexible Filtering** - Postfix-based selection with regex support for ignoring files
+- ✅ **Real-Time Progress** - Track extraction progress, speed, and ETA
+- ✅ **Pause/Resume/Cancel** - Full control over extraction operations
+- ✅ **Automatic Backup** - Save original BA2s before extraction (configurable)
 
-DISCLAIMER: Unpackrr is unable to detect all possible archive errors, especially if the said archive can be 
-listed/extracted successfully.
+### File Validation
+- ✅ **Quick Scan** - List BA2 contents to detect corruption
+- ✅ **Deep Scan** - Extract to temp directory for thorough validation
+- ✅ **Batch Checking** - Scan entire mod folders at once
+- ✅ **Detailed Reports** - Identify corrupted archives before they cause issues
 
-## Technical stuff
-Unpackrr will extract all files shown in the "Preview" screen. Specifically, a file satisfying all 
-the following criteria will be extracted:
+### User Interface
+- ✅ **Fluent Design** - Modern, polished interface following Microsoft Fluent principles
+- ✅ **Theme Support** - Light, dark, and system-based themes
+- ✅ **Custom Accent Colors** - Personalize your experience
+- ✅ **Sortable Tables** - Organize BA2 files by name, size, file count, or mod
+- ✅ **Context Menus** - Right-click for quick actions
+- ✅ **Native File Dialogs** - System-native folder selection
 
-- it contains any of the entries in "Postfixes"
-- it does not contain any of the entries in "Ignored files"
-- it is smaller than the file size threshold (unless you did not specify one)
+### Advanced Features
+- ✅ **External Tool Integration** - Open BA2s in your preferred BA2 viewer
+- ✅ **Windows Registry Detection** - Auto-detect default BA2 handler
+- ✅ **Update Checking** - Stay informed about new releases
+- ✅ **Comprehensive Error Handling** - User-friendly messages with recovery suggestions
+- ✅ **Retry Logic** - Automatic retry with exponential backoff for transient failures
+- ✅ **Detailed Logging** - Daily rotating logs for troubleshooting
 
-### Settings, explained
+---
 
-**Extraction**
+## Installation
 
-- **Postfixes**: any files containing these postfixes will be selected. A sensible default has been provided, but you can add or delete your own postfixes if you like.
-- **Ignored** files: any files containing these entries will be excluded. You can add anything to the section.
-  Advanced usage: you can use any regex for filtering. Wrap your pattern in `{}` (a pair of curly braces). For example, `{.*[dD]iamond.*}` matches any file that contains "diamond" or "Diamond" in the name.
-  Note: matches are checked via `re.fullmatch()` function, which means it is anchored at the start and the end (i.e. `^pattern$`).
-- **Ignore bad files**: self-explanatory.
-- **Automatic backup**: automatically back up extracted ba2 to "backup" folder (inside individual mods' folder). You can customize where it backs up to in Advanced > Backup path
+### Download
 
-**Personalization**
+**Portable Release** (Recommended):
+1. Download the latest release from the [Releases page](https://github.com/evildarkarchon/ba2-batch-unpack-gui/releases)
+2. Extract the ZIP archive to your desired location
+3. Run `unpackrr.exe` - no installation required!
 
-- Everything is self-explanatory
+**What's Included**:
+```
+unpackrr-rs/
+  ├── unpackrr.exe          # Main application
+  ├── BSArch.exe            # BA2 extraction tool (MPL-2.0 licensed)
+  ├── LICENSE               # GPL-3.0 license
+  ├── THIRD_PARTY_LICENSES.md
+  └── README.md             # This file
+```
 
-**Update**
+### Building from Source
 
-- Please note that "Check for updates" does not function currently. Please track this mod on Nexus or Watch this project on GitHub for time being.
+**Requirements**:
+- Rust 1.85+ (2024 edition)
+- Cargo (included with Rust)
+- Git
 
-**Advanced**
+**Steps**:
+```bash
+# Clone the repository
+git clone https://github.com/evildarkarchon/ba2-batch-unpack-gui.git
+cd ba2-batch-unpack-gui/unpackrr-rs
 
-- **Show log output**: when toggled on, you can see a separate window containing all the logs collected in this run. It is helpful to provide relevant entries in the log when you file a bug report.
-- **Extraction path**: by default Unpackrr extracts the ba2 in-place (typical setup for those looking to trim down their load order). However, you can elect to extract the ba2 to a separate folder by providing the (full) path to the folder of your choosing. Alternatively you can enter a relative path (e.g. "extracted") so that all files are extracted to this folder inside individual mod folders.
-- **Backup path**: by default, Unpackrr saves a copy of the ba2 files extracted to "backup" folder inside individual mod folders. You can change this to a central location by providing the (full) path to the folder of your choosing. Similar to extraction path you can also enter a relative path so ba2 will be saved to this folder inside individual mod folders.
-- **External ba2 tool**: the Unpackrr will automatically detect and populate the default application that handles .ba2 format in your system, however you can also specify your own program to do this. This chosen application will then be used to open ba2 files in the Preview table.
-  When you "Open" a ba2, Unpackrr calls the function with the path to ba2 as its sole argument. Therefore, it is possible that some external program fails to open. Known working program includes [BSA Browser](https://www.nexusmods.com/fallout4/mods/17061), [Archive2](https://store.steampowered.com/app/1946160/Fallout_4_Creation_Kit/).
+# Build release binary
+cargo build --release
 
-## FAQ & Known Issues
+# Binary will be at: target/release/unpackrr.exe (Windows) or target/release/unpackrr (Linux/macOS)
+```
 
-### FAQ
+**Note**: You'll need to obtain `BSArch.exe` separately from the [TES5Edit project](https://github.com/TES5Edit/TES5Edit) and place it in the same directory as the executable.
 
-- Q: Unpackrr?
-  A: Yes.
-- Q: Linux/macOS support?
-  A: not planned yet, though I can evaluate the possibilities once there's enough demand for it.
+---
 
+## Usage
 
-**Known Issues**
+### Quick Start
 
-- Unpackrr can trigger false AV positives. This is due to PyInstaller that packs the program ([#1](https://github.com/kazum1kun/ba2-batch-unpack-gui/issues/1)).
-- ~~The stats above the Preview section sometimes does not update when you input a threshold ([#2](https://github.com/kazum1kun/ba2-batch-unpack-gui/issues/2)).~~ Fixed in 0.2.0
-- Unpackrr can take long to start sometimes ([#3](https://github.com/kazum1kun/ba2-batch-unpack-gui/issues/3)).
-- ~~The file checker does not work well.~~ Fixed in 0.2.0
+**Extract BA2 Files**:
+1. Launch Unpackrr
+2. Click **Browse** or drag-and-drop your Fallout 4 mod folder
+   - **Mod Organizer 2**: Open → Open Mods folder
+   - **Vortex**: Open → Open Mod Staging Folder
+3. Preview the BA2 files that will be extracted
+4. (Optional) Click **Auto** to calculate optimal size threshold, or enter manually
+5. Click **Start Extraction** and wait for completion
 
-As always, should you encounter additional issues please don't hesitate to report. Thanks!
+**Check for Corrupted Files**:
+1. Click the **Check Files** tab
+2. Select your mod folder
+3. Click **Start**
+4. (Optional) Enable **Deep Scan** for thorough checking
 
-**Issues? Feedback?**
-Please enter an [Issue](https://github.com/kazum1kun/ba2-batch-unpack-gui/issues/)/PR on GitHub. Your contribution is greatly appreciated!
+### Settings
+
+Access settings via the gear icon in the sidebar.
+
+**Extraction Settings**:
+- **Postfixes**: File endings to include (e.g., `- Main.ba2`)
+- **Ignored Files**: Patterns to exclude (supports regex in `{pattern}` format)
+- **Ignore Bad Files**: Skip corrupted archives during extraction
+- **Automatic Backup**: Save original BA2s to backup folder
+
+**Personalization**:
+- **Theme**: Light, Dark, or System
+- **Accent Color**: Customize highlight colors
+- **Language**: English (additional languages may be added later)
+
+**Advanced Settings**:
+- **Show Debug Log**: Enable detailed logging output
+- **Extraction Path**: Where to extract files (default: in-place)
+- **Backup Path**: Where to save backups (default: `backup/` in mod folder)
+- **External BA2 Tool**: Path to your preferred BA2 viewer
+
+---
+
+## Technical Details
+
+### Architecture
+
+Unpackrr is built on:
+- **Rust 2024 Edition** - Modern, safe systems programming
+- **Slint UI Framework** - Declarative, hardware-accelerated GUI
+- **Tokio Async Runtime** - Concurrent I/O operations
+- **BSArch.exe** - Battle-tested BA2 extraction (MPL-2.0 licensed)
+
+**Key Technologies**:
+- `async-compat` - Slint + Tokio integration
+- `reqwest` - Update checking via GitHub API
+- `tracing` - Comprehensive logging
+- `serde` - Configuration serialization
+- `regex` - Advanced file filtering
+- `rayon` - Parallel BA2 scanning
+
+### BSArch.exe
+
+This application uses [BSArch.exe](https://github.com/TES5Edit/TES5Edit) for BA2 extraction. BSArch is a mature, reliable tool developed by the TES5Edit team, licensed under the Mozilla Public License 2.0 (MPL-2.0).
+
+**Why not reimplement extraction in Rust?**
+- BSArch.exe is years ahead in terms of BA2 format support and edge case handling
+- It's actively maintained and updated for new Bethesda game releases
+- Focus our efforts on user experience rather than reinventing the wheel
+- MPL-2.0 license permits redistribution with proper attribution
+
+### File Selection Logic
+
+A BA2 file is extracted if it meets **all** of these criteria:
+1. Contains at least one postfix from the "Postfixes" list
+2. Does **not** contain any pattern from the "Ignored Files" list
+3. Is smaller than the specified threshold (if set)
+
+**Regex Support**:
+Wrap patterns in curly braces for regex matching:
+- `{.*[dD]iamond.*}` - Matches files containing "diamond" or "Diamond"
+- `{^Texture.*Main\.ba2$}` - Matches files starting with "Texture" and ending with "Main.ba2"
+
+**Note**: Regex patterns use `fullmatch()`, meaning they're anchored at start and end (`^pattern$`).
+
+---
+
+## Configuration
+
+Settings are stored in JSON format at:
+- **Windows**: `%APPDATA%\Unpackrr\config\config.json`
+- **Linux**: `~/.config/unpackrr/config/config.json`
+- **macOS**: `~/Library/Application Support/com.unpackrr.app/config/config.json`
+
+Logs are stored at:
+- **Windows**: `%APPDATA%\Unpackrr\logs\`
+- **Linux**: `~/.local/share/unpackrr/logs/`
+- **macOS**: `~/Library/Application Support/com.unpackrr.app/logs/`
+
+Log files rotate daily: `unpackrr-YYYY-MM-DD.log`
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+**Application won't start**:
+- Ensure `BSArch.exe` is in the same directory as `unpackrr.exe`
+- Check logs in the data directory for detailed error messages
+- Try running from command line to see startup errors
+
+**Extraction fails**:
+- Verify BA2 files aren't corrupted using the Check Files screen
+- Ensure you have write permissions to the mod folder
+- Check that BSArch.exe is not blocked by antivirus software
+
+**Performance issues**:
+- Large mod collections (1000+ BA2s) may take time to scan
+- Enable logging to identify bottlenecks
+- Consider using manual threshold instead of Auto for huge collections
+
+### Reporting Bugs
+
+Please report issues on [GitHub Issues](https://github.com/evildarkarchon/ba2-batch-unpack-gui/issues) with:
+1. Unpackrr version (shown in Settings → About)
+2. Operating system and version
+3. Steps to reproduce the issue
+4. Relevant log entries from the log file
+5. Screenshots (if UI-related)
+
+---
+
+## Development
+
+### Project Structure
+
+```
+unpackrr-rs/
+├── src/
+│   ├── main.rs              # Application entry point
+│   ├── lib.rs               # Library root
+│   ├── error.rs             # Error types and handling
+│   ├── config/              # Configuration management
+│   ├── ba2/                 # BA2 format support
+│   ├── operations/          # File operations (scan, extract, validate)
+│   ├── models/              # Data models
+│   ├── platform/            # Platform-specific code (Windows/Unix)
+│   ├── logging/             # Logging infrastructure
+│   └── ui/                  # UI integration and callbacks
+├── ui/
+│   └── main.slint          # Slint UI definition
+├── tests/                   # Integration tests
+├── Cargo.toml              # Dependencies and build configuration
+└── build.rs                # Build script (Slint compilation)
+```
+
+### Contributing
+
+Contributions are welcome! Please:
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Follow Rust 2024 best practices (see `CLAUDE.md` for guidelines)
+4. Run `cargo fmt` and `cargo clippy` before committing
+5. Ensure all tests pass (`cargo test`)
+6. Submit a pull request
+
+**Development Guidelines**:
+- Follow the patterns in `CLAUDE.md` and `IMPLEMENTATION_PLAN.md`
+- Add tests for new functionality
+- Document public APIs with `///` doc comments
+- Keep commits focused and well-described
+
+### Testing
+
+```bash
+# Run all tests
+cargo test
+
+# Run with output
+cargo test -- --nocapture
+
+# Run specific test
+cargo test test_name
+
+# Build and run
+cargo run
+
+# Release build
+cargo build --release
+```
+
+---
+
+## Credits
+
+### Original Project
+**Unpackrr** was originally created by **KazumaKuun** (Southwest Codeworks):
+- GitHub: [kazum1kun](https://github.com/kazum1kun)
+- Nexus Mods: [Original Unpackrr](https://www.nexusmods.com/fallout4/mods/79593)
+- Ko-fi: [Support the original developer](https://ko-fi.com/kazumakuun)
+
+### Current Rust Port
+**Maintained by**: [evildarkarchon](https://github.com/evildarkarchon)
+**Repository**: [ba2-batch-unpack-gui](https://github.com/evildarkarchon/ba2-batch-unpack-gui)
+
+### Third-Party Components
+- **BSArch.exe**: [TES5Edit Team](https://github.com/TES5Edit/TES5Edit) - MPL-2.0 License
+- **Slint**: [Slint](https://slint.dev/) - GPL-3.0 Compatible
+- **Rust Crates**: See `Cargo.toml` for full dependency list
+
+---
+
+## License
+
+This project is licensed under the **GNU General Public License v3.0** (GPL-3.0).
+See [LICENSE](LICENSE) for full terms.
+
+**Bundled Third-Party Software**:
+- **BSArch.exe**: Licensed under Mozilla Public License 2.0 (MPL-2.0)
+- See [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) for details
+
+---
+
+## Changelog
+
+### Version 0.1.0 (In Development)
+- Complete Rust port of original Python application
+- Fluent Design UI with Slint framework
+- Enhanced performance with async I/O
+- Real-time progress tracking with speed and ETA
+- Pause/Resume/Cancel extraction
+- Advanced error handling with retry logic
+- Theme support (light/dark/system)
+- Windows registry integration for default BA2 handler
+- Comprehensive logging with daily rotation
+- Update checking via GitHub API
+
+---
+
+## Roadmap
+
+### Planned Features
+- Multi-language support (internationalization)
+- UI animations and polish
+- CLI mode for scripting
+- Additional BA2 format support as BSArch.exe evolves
+- Potential Linux support (if BA2 tools become available)
+
+### Not Planned
+- BA2 creation/packing features (use BSArch.exe or Creation Kit directly)
+- Mod conflict detection (scope creep; better suited for mod managers)
+- ESM/ESP plugin management (out of scope)
+
+---
+
+## Acknowledgments
+
+Special thanks to:
+- **KazumaKuun** for creating the original Unpackrr and inspiring this port
+- **TES5Edit Team** for BSArch.exe, the backbone of BA2 extraction
+- **Slint Team** for the excellent GUI framework
+- **Rust Community** for amazing tools and libraries
+- **Fallout 4 Modding Community** for feedback and support
+
+---
+
+<div align="center">
+
+**Made with ❤️ and Rust**
+
+[Report Issue](https://github.com/evildarkarchon/ba2-batch-unpack-gui/issues) · [Request Feature](https://github.com/evildarkarchon/ba2-batch-unpack-gui/issues) · [Nexus Mods](https://www.nexusmods.com/fallout4/mods/79593)
+
+</div>

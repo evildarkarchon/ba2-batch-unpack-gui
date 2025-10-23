@@ -4,8 +4,8 @@ This project is a Rust port of the Python-based BA2 batch unpacker GUI. The goal
 
 ## Project Context
 
-**Original**: Python GUI application using PyQt/PySide for extracting Bethesda Archive 2 (BA2) files
-**Target**: High-performance Rust implementation in [unpackrr-rs/](unpackrr-rs/)
+**Original**: Python GUI application using PyQt/PySide for extracting Bethesda Archive 2 (BA2) files (preserved in `python-legacy` branch)
+**Current**: High-performance Rust implementation at repository root
 **Edition**: Rust 2024 (latest)
 
 ## Rust Best Practices (Edition 2024)
