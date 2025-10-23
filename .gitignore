@@ -256,3 +256,4 @@ target
 #.idea/
 uv.lock
 .python-version
+unpackrr-rs/Cargo.lock
