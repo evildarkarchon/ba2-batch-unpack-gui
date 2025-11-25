@@ -110,12 +110,12 @@ fn setup_callbacks(main_window: &MainWindow) {
     setup_scan_callback(main_window, Arc::clone(&state));
     setup_extraction_callback(main_window, Arc::clone(&state), Arc::clone(&extraction_control));
     setup_sort_callback(main_window, Arc::clone(&state));
-    setup_threshold_callbacks(main_window, Arc::clone(&state)); // Phase 2.3
-    setup_file_actions_callback(main_window, Arc::clone(&state)); // Phase 2.3
+    setup_threshold_callbacks(main_window, &state); // Phase 2.3
+    setup_file_actions_callback(main_window, &state); // Phase 2.3
     setup_open_folder_callback(main_window, Arc::clone(&state)); // Phase 2.3
-    setup_extraction_control_callbacks(main_window, Arc::clone(&extraction_control)); // Phase 2.3
+    setup_extraction_control_callbacks(main_window, &extraction_control); // Phase 2.3
     setup_update_checker_callback(main_window);
-    setup_platform_integration(main_window, Arc::clone(&state)); // Phase 2.9
+    setup_platform_integration(main_window, &state); // Phase 2.9
     setup_log_viewer_callbacks(main_window); // Phase 3.3
 
     tracing::info!("UI callbacks initialized");
@@ -143,13 +143,14 @@ fn setup_browse_folder_callback(main_window: &MainWindow, state: Arc<Mutex<AppSt
 
                         // Save last used directory
                         if let Ok(mut app_state) = state.lock() {
-                            app_state.config.saved.directory = folder_str.clone();
+                            app_state.config.saved.directory.clone_from(&folder_str);
                             if let Err(e) = app_state.config.save() {
                                 tracing::error!("Failed to save configuration: {}", e);
                             } else {
                                 tracing::debug!("Saved last used directory to config");
                             }
                         }
+
                     }
                 });
             } else {
@@ -160,6 +161,7 @@ fn setup_browse_folder_callback(main_window: &MainWindow, state: Arc<Mutex<AppSt
 }
 
 /// Set up scan callback
+#[allow(clippy::too_many_lines)] // UI callback setup functions need multiple steps
 fn setup_scan_callback(main_window: &MainWindow, state: Arc<Mutex<AppState>>) {
     let weak = main_window.as_weak();
 
@@ -210,20 +212,20 @@ fn setup_scan_callback(main_window: &MainWindow, state: Arc<Mutex<AppState>>) {
                     let weak = weak_clone.clone();
                     let status = match progress {
                         ScanProgress::Started { total_dirs } => {
-                            format!("Starting scan of {} directories...", total_dirs)
+                            format!("Starting scan of {total_dirs} directories...")
                         }
                         ScanProgress::ScanningFolder {
                             folder,
                             current,
                             total,
                         } => {
-                            format!("Scanning {} ({}/{})", folder, current, total)
+                            format!("Scanning {folder} ({current}/{total})")
                         }
                         ScanProgress::FoundBA2 { file_name } => {
-                            format!("Found: {}", file_name)
+                            format!("Found: {file_name}")
                         }
                         ScanProgress::Complete { total_files } => {
-                            format!("Scan complete: {} files found", total_files)
+                            format!("Scan complete: {total_files} files found")
                         }
                     };
 
@@ -276,21 +278,20 @@ fn setup_scan_callback(main_window: &MainWindow, state: Arc<Mutex<AppState>>) {
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(ui) = weak_clone.upgrade() {
                                 ui.set_file_list(ModelRc::new(VecModel::from(row_data)));
-                                ui.set_total_files(total_files as i32);
+                                ui.set_total_files(total_files.try_into().unwrap_or(i32::MAX));
                                 ui.set_total_size(SharedString::from(format_size(
                                     total_size,
                                     BINARY,
                                 )));
                                 ui.set_scanning(false);
                                 ui.set_status_text(SharedString::from(format!(
-                                    "Ready - {} files found",
-                                    total_files
+                                    "Ready - {total_files} files found"
                                 )));
                             }
                         });
                     }
                     Ok(Err(e)) => {
-                        let error_msg = format!("Scan failed: {}", e);
+                        let error_msg = format!("Scan failed: {e}");
                         tracing::error!("{}", error_msg);
 
                         let _ = slint::invoke_from_event_loop(move || {
@@ -316,6 +317,7 @@ fn setup_scan_callback(main_window: &MainWindow, state: Arc<Mutex<AppState>>) {
 }
 
 /// Set up extraction callback
+#[allow(clippy::too_many_lines)] // Complex extraction flow with progress tracking
 fn setup_extraction_callback(
     main_window: &MainWindow,
     state: Arc<Mutex<AppState>>,
@@ -410,7 +412,7 @@ fn setup_extraction_callback(
                                             should_cancel = true;
                                             break;
                                         }
-                                        _ => {}
+                                        ExtractionControl::Pause => {}
                                     }
                                 }
                             }
@@ -441,10 +443,11 @@ fn setup_extraction_callback(
                                 last_update_time = std::time::Instant::now();
                             }
 
+                            #[allow(clippy::cast_precision_loss)] // File counts won't exceed f64 precision
                             let speed_str = if should_update_timing && current_val > 0 && elapsed_secs > 0.0 {
                                 let files_per_sec = current_val as f64 / elapsed_secs;
                                 if files_per_sec >= 1.0 {
-                                    format!("{:.1} files/s", files_per_sec)
+                                    format!("{files_per_sec:.1} files/s")
                                 } else {
                                     format!("{:.1} s/file", 1.0 / files_per_sec)
                                 }
@@ -452,6 +455,11 @@ fn setup_extraction_callback(
                                 String::new()
                             };
 
+                            #[allow(
+                                clippy::cast_precision_loss, // File counts won't exceed f64 precision
+                                clippy::cast_possible_truncation, // ETA seconds fit in u64
+                                clippy::cast_sign_loss // All values are positive
+                            )]
                             let eta_str = if should_update_timing && current_val > 0 && elapsed_secs > 0.0 {
                                 let remaining = total_val.saturating_sub(current_val);
                                 if remaining > 0 {
@@ -463,11 +471,11 @@ fn setup_extraction_callback(
                                     let secs = eta_secs % 60;
 
                                     if hours > 0 {
-                                        format!("{}h {}m", hours, mins)
+                                        format!("{hours}h {mins}m")
                                     } else if mins > 0 {
-                                        format!("{}m {}s", mins, secs)
+                                        format!("{mins}m {secs}s")
                                     } else {
-                                        format!("{}s", secs)
+                                        format!("{secs}s")
                                     }
                                 } else {
                                     String::new()
@@ -480,12 +488,12 @@ fn setup_extraction_callback(
                             let _ = slint::invoke_from_event_loop(move || {
                                 if let Some(ui) = weak_progress.upgrade() {
                                     ui.set_current_extracting_file(SharedString::from(file_name_clone));
-                                    ui.set_current_file_index(current_val as i32);
-                                    ui.set_total_extraction_files(total_val as i32);
+                                    ui.set_current_file_index(current_val.try_into().unwrap_or(i32::MAX));
+                                    ui.set_total_extraction_files(total_val.try_into().unwrap_or(i32::MAX));
 
                                     // Calculate progress percentage (avoid division by zero)
                                     let progress_pct = if total_val > 0 {
-                                        ((current_val * 100) / total_val) as i32
+                                        ((current_val * 100) / total_val).try_into().unwrap_or(0)
                                     } else {
                                         0
                                     };
@@ -499,7 +507,7 @@ fn setup_extraction_callback(
                                 }
                             });
 
-                            format!("Extracting {} ({}/{})", file_name, current, total)
+                            format!("Extracting {file_name} ({current}/{total})")
                         }
                         ExtractionProgress::Completed {
                             file_name,
@@ -507,12 +515,12 @@ fn setup_extraction_callback(
                             error,
                         } => {
                             if *success {  // Dereference since we're now matching on &progress
-                                format!("Completed: {}", file_name)
+                                format!("Completed: {file_name}")
                             } else {
                                 format!(
                                     "Failed: {} - {}",
                                     file_name,
-                                    error.as_ref().map(|s| s.as_str()).unwrap_or("Unknown error")
+                                    error.as_ref().map_or("Unknown error", std::string::String::as_str)
                                 )
                             }
                         }
@@ -534,8 +542,7 @@ fn setup_extraction_callback(
                             });
 
                             format!(
-                                "Extraction complete: {} successful, {} failed",
-                                successful, failed
+                                "Extraction complete: {successful} successful, {failed} failed"
                             )
                         }
                     };
@@ -638,7 +645,7 @@ fn setup_extraction_callback(
                         });
                     }
                     Ok(Err(e)) => {
-                        let error_msg = format!("Extraction failed: {}", e);
+                        let error_msg = format!("Extraction failed: {e}");
                         tracing::error!("{}", error_msg);
 
                         let _ = slint::invoke_from_event_loop(move || {
@@ -687,19 +694,21 @@ fn setup_sort_callback(main_window: &MainWindow, state: Arc<Mutex<AppState>>) {
         let weak_clone = weak.clone();
         let _ = slint::invoke_from_event_loop(move || {
             if let Some(ui) = weak_clone.upgrade() {
-                let app_state = state_clone.lock().unwrap();
-                let row_data: Vec<FileRowData> = app_state
-                    .file_entries
-                    .entries()
-                    .iter()
-                    .map(|e| FileRowData {
-                        file_name: SharedString::from(&e.file_name),
-                        file_size: SharedString::from(e.size_display()),
-                        num_files: SharedString::from(e.file_count_display()),
-                        mod_name: SharedString::from(e.mod_display()),
-                        is_bad: e.is_corrupted(),
-                    })
-                    .collect();
+                let row_data: Vec<FileRowData> = {
+                    let app_state = state_clone.lock().unwrap();
+                    app_state
+                        .file_entries
+                        .entries()
+                        .iter()
+                        .map(|e| FileRowData {
+                            file_name: SharedString::from(&e.file_name),
+                            file_size: SharedString::from(e.size_display()),
+                            num_files: SharedString::from(e.file_count_display()),
+                            mod_name: SharedString::from(e.mod_display()),
+                            is_bad: e.is_corrupted(),
+                        })
+                        .collect()
+                }; // Lock dropped here before UI update
 
                 ui.set_file_list(ModelRc::new(VecModel::from(row_data)));
             }
@@ -710,11 +719,11 @@ fn setup_sort_callback(main_window: &MainWindow, state: Arc<Mutex<AppState>>) {
 /// Set up extraction control callbacks (Phase 2.3)
 fn setup_extraction_control_callbacks(
     main_window: &MainWindow,
-    extraction_control: Arc<Mutex<ExtractionControlState>>,
+    extraction_control: &Arc<Mutex<ExtractionControlState>>,
 ) {
     // Pause extraction
     {
-        let extraction_control_clone = Arc::clone(&extraction_control);
+        let extraction_control_clone = Arc::clone(extraction_control);
         main_window.on_pause_extraction(move || {
             tracing::info!("Pause extraction requested");
             let ctrl_state = extraction_control_clone.lock().unwrap();
@@ -730,7 +739,7 @@ fn setup_extraction_control_callbacks(
 
     // Resume extraction
     {
-        let extraction_control_clone = Arc::clone(&extraction_control);
+        let extraction_control_clone = Arc::clone(extraction_control);
         main_window.on_resume_extraction(move || {
             tracing::info!("Resume extraction requested");
             let ctrl_state = extraction_control_clone.lock().unwrap();
@@ -746,7 +755,7 @@ fn setup_extraction_control_callbacks(
 
     // Cancel extraction
     {
-        let extraction_control_clone = Arc::clone(&extraction_control);
+        let extraction_control_clone = Arc::clone(extraction_control);
         main_window.on_cancel_extraction(move || {
             tracing::info!("Cancel extraction requested");
             let ctrl_state = extraction_control_clone.lock().unwrap();
@@ -772,7 +781,7 @@ fn setup_update_checker_callback(main_window: &MainWindow) {
 
         // Show toast notification that we're checking
         if let Some(ui) = weak.upgrade() {
-            show_toast(&ui, ToastData {
+            show_toast(&ui, &ToastData {
                 message: "Checking for updates...".to_string(),
                 notification_type: NotificationType::Info,
                 show: true,
@@ -826,7 +835,7 @@ fn setup_update_checker_callback(main_window: &MainWindow) {
 
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(ui) = weak_clone.upgrade() {
-                                show_toast(&ui, ToastData {
+                                show_toast(&ui, &ToastData {
                                     message: "You're running the latest version!".to_string(),
                                     notification_type: NotificationType::Success,
                                     show: true,
@@ -838,10 +847,10 @@ fn setup_update_checker_callback(main_window: &MainWindow) {
                         // Error checking for updates
                         tracing::error!("Failed to check for updates: {}", e);
 
-                        let error_msg = format!("Failed to check for updates: {}", e);
+                        let error_msg = format!("Failed to check for updates: {e}");
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(ui) = weak_clone.upgrade() {
-                                show_toast(&ui, ToastData {
+                                show_toast(&ui, &ToastData {
                                     message: error_msg,
                                     notification_type: NotificationType::Error,
                                     show: true,
@@ -858,12 +867,12 @@ fn setup_update_checker_callback(main_window: &MainWindow) {
 ///
 /// Detects the default BA2 file handler on Windows and auto-populates
 /// the external tool setting if it's empty.
-fn setup_platform_integration(main_window: &MainWindow, state: Arc<Mutex<AppState>>) {
+fn setup_platform_integration(main_window: &MainWindow, state: &Arc<Mutex<AppState>>) {
     tracing::info!("Initializing platform integration (Phase 2.9)");
 
     // Try to detect the default BA2 handler
     match crate::platform::get_default_ba2_handler() {
-        Ok(Some(handler_path)) => {
+        Some(handler_path) => {
             tracing::info!("Detected default BA2 handler: {}", handler_path.display());
 
             // Check if the external tool path is empty in config
@@ -878,7 +887,7 @@ fn setup_platform_integration(main_window: &MainWindow, state: Arc<Mutex<AppStat
 
                 {
                     let mut app_state = state.lock().unwrap();
-                    app_state.config.advanced.ext_ba2_exe = handler_str.clone();
+                    app_state.config.advanced.ext_ba2_exe.clone_from(&handler_str);
 
                     // Save the updated config
                     if let Err(e) = app_state.config.save() {
@@ -892,8 +901,8 @@ fn setup_platform_integration(main_window: &MainWindow, state: Arc<Mutex<AppStat
                 main_window.set_settings_external_tool(SharedString::from(handler_str.clone()));
 
                 // Show a toast notification
-                show_toast(main_window, ToastData {
-                    message: format!("Auto-detected BA2 handler: {}", handler_str),
+                show_toast(main_window, &ToastData {
+                    message: format!("Auto-detected BA2 handler: {handler_str}"),
                     notification_type: NotificationType::Info,
                     show: true,
                 });
@@ -901,22 +910,20 @@ fn setup_platform_integration(main_window: &MainWindow, state: Arc<Mutex<AppStat
                 tracing::debug!("External BA2 tool already configured, skipping auto-detection");
             }
         }
-        Ok(None) => {
+        None => {
             tracing::info!("No default BA2 handler detected (this is normal on non-Windows platforms)");
-        }
-        Err(e) => {
-            tracing::warn!("Failed to detect default BA2 handler: {}", e);
         }
     }
 }
 
 /// Set up threshold filtering callbacks (Phase 2.3)
-fn setup_threshold_callbacks(main_window: &MainWindow, state: Arc<Mutex<AppState>>) {
+#[allow(clippy::too_many_lines)] // Multiple threshold UI interactions
+fn setup_threshold_callbacks(main_window: &MainWindow, state: &Arc<Mutex<AppState>>) {
     let weak = main_window.as_weak();
 
     // Handle threshold value changes
     {
-        let state_clone = Arc::clone(&state);
+        let state_clone = Arc::clone(state);
         let weak_clone = weak.clone();
 
         main_window.on_threshold_changed(move |value| {
@@ -956,9 +963,10 @@ fn setup_threshold_callbacks(main_window: &MainWindow, state: Arc<Mutex<AppState
 
     // Handle auto-threshold toggle
     {
-        let state_clone = Arc::clone(&state);
-        let weak_clone = weak.clone();
+        let state_clone = Arc::clone(state);
+        let weak_clone = weak;
 
+        #[allow(clippy::significant_drop_tightening)] // Lock must be held while reading entries
         main_window.on_auto_threshold_toggled(move |enabled| {
             if enabled {
                 // Calculate auto-threshold (235 file limit)
@@ -998,10 +1006,9 @@ fn setup_threshold_callbacks(main_window: &MainWindow, state: Arc<Mutex<AppState
                             ui.set_threshold_value(SharedString::from(threshold_str.clone()));
                             refresh_file_table(&ui, &state, Some(threshold));
 
-                            show_toast(&ui, ToastData {
+                            show_toast(&ui, &ToastData {
                                 message: format!(
-                                    "Auto-threshold set to {} (keeping 235 files)",
-                                    threshold_str
+                                    "Auto-threshold set to {threshold_str} (keeping 235 files)"
                                 ),
                                 notification_type: NotificationType::Success,
                                 show: true,
@@ -1015,10 +1022,9 @@ fn setup_threshold_callbacks(main_window: &MainWindow, state: Arc<Mutex<AppState
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(ui) = weak.upgrade() {
                             ui.set_auto_threshold(false);
-                            show_toast(&ui, ToastData {
+                            show_toast(&ui, &ToastData {
                                 message: format!(
-                                    "Auto-threshold not needed: only {} BA2 files found (limit is 235)",
-                                    entries_count
+                                    "Auto-threshold not needed: only {entries_count} BA2 files found (limit is 235)"
                                 ),
                                 notification_type: NotificationType::Info,
                                 show: true,
@@ -1042,8 +1048,10 @@ fn setup_threshold_callbacks(main_window: &MainWindow, state: Arc<Mutex<AppState
 }
 
 /// Set up file actions callback (Phase 2.3 - ignore/open)
-fn setup_file_actions_callback(main_window: &MainWindow, state: Arc<Mutex<AppState>>) {
+#[allow(clippy::too_many_lines)] // Multiple file action handlers
+fn setup_file_actions_callback(main_window: &MainWindow, state: &Arc<Mutex<AppState>>) {
     let weak = main_window.as_weak();
+    let state = Arc::clone(state);
 
     main_window.on_file_action(move |row_index, action| {
         let action_str = action.to_string();
@@ -1054,8 +1062,13 @@ fn setup_file_actions_callback(main_window: &MainWindow, state: Arc<Mutex<AppSta
                 // Get the file name from the row
                 let file_name = if let Some(ui) = weak.upgrade() {
                     let file_list = ui.get_file_list();
-                    if row_index >= 0 && (row_index as usize) < file_list.row_count() {
-                        file_list.row_data(row_index as usize).unwrap().file_name.to_string()
+                    if let Ok(idx) = usize::try_from(row_index) {
+                        if idx < file_list.row_count() {
+                            file_list.row_data(idx).unwrap().file_name.to_string()
+                        } else {
+                            tracing::error!("Invalid row index: {}", row_index);
+                            return;
+                        }
                     } else {
                         tracing::error!("Invalid row index: {}", row_index);
                         return;
@@ -1086,8 +1099,8 @@ fn setup_file_actions_callback(main_window: &MainWindow, state: Arc<Mutex<AppSta
                     if let Some(ui) = weak_clone.upgrade() {
                         refresh_file_table(&ui, &state_clone, None);
 
-                        show_toast(&ui, ToastData {
-                            message: format!("Ignored file: {}", file_name),
+                        show_toast(&ui, &ToastData {
+                            message: format!("Ignored file: {file_name}"),
                             notification_type: NotificationType::Success,
                             show: true,
                         });
@@ -1100,12 +1113,15 @@ fn setup_file_actions_callback(main_window: &MainWindow, state: Arc<Mutex<AppSta
                     let app_state = state.lock().unwrap();
                     let entries = app_state.file_entries.entries();
 
-                    if row_index < 0 || (row_index as usize) >= entries.len() {
-                        tracing::error!("Invalid row index: {}", row_index);
-                        return;
-                    }
+                    let idx = match usize::try_from(row_index) {
+                        Ok(i) if i < entries.len() => i,
+                        _ => {
+                            tracing::error!("Invalid row index: {}", row_index);
+                            return;
+                        }
+                    };
 
-                    let entry = &entries[row_index as usize];
+                    let entry = &entries[idx];
                     (
                         entry.file_name.clone(),
                         entry.full_path.clone(),
@@ -1121,8 +1137,8 @@ fn setup_file_actions_callback(main_window: &MainWindow, state: Arc<Mutex<AppSta
                     let weak_clone = weak.clone();
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(ui) = weak_clone.upgrade() {
-                            show_toast(&ui, ToastData {
-                                message: format!("File not found: {}", file_name),
+                            show_toast(&ui, &ToastData {
+                                message: format!("File not found: {file_name}"),
                                 notification_type: NotificationType::Error,
                                 show: true,
                             });
@@ -1137,7 +1153,7 @@ fn setup_file_actions_callback(main_window: &MainWindow, state: Arc<Mutex<AppSta
                     let weak_clone = weak.clone();
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(ui) = weak_clone.upgrade() {
-                            show_toast(&ui, ToastData {
+                            show_toast(&ui, &ToastData {
                                 message: "No external BA2 tool configured.\nPlease set the tool path in Settings > Advanced.".to_string(),
                                 notification_type: NotificationType::Warning,
                                 show: true,
@@ -1163,10 +1179,10 @@ fn setup_file_actions_callback(main_window: &MainWindow, state: Arc<Mutex<AppSta
                         }
                         Err(e) => {
                             tracing::error!("Failed to launch external tool: {}", e);
-                            let error_msg = format!("Failed to open BA2 file:\n{}", e);
+                            let error_msg = format!("Failed to open BA2 file:\n{e}");
                             let _ = slint::invoke_from_event_loop(move || {
                                 if let Some(ui) = weak_clone.upgrade() {
-                                    show_toast(&ui, ToastData {
+                                    show_toast(&ui, &ToastData {
                                         message: error_msg,
                                         notification_type: NotificationType::Error,
                                         show: true,
@@ -1211,11 +1227,11 @@ fn setup_open_folder_callback(main_window: &MainWindow, state: Arc<Mutex<AppStat
 
             if let Err(e) = open::that(&default_path) {
                 tracing::error!("Failed to open folder: {}", e);
-                let error_msg = format!("Failed to open folder:\n{}", e);
+                let error_msg = format!("Failed to open folder:\n{e}");
                 let weak_clone = weak.clone();
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(ui) = weak_clone.upgrade() {
-                        show_toast(&ui, ToastData {
+                        show_toast(&ui, &ToastData {
                             message: error_msg,
                             notification_type: NotificationType::Error,
                             show: true,
@@ -1228,11 +1244,11 @@ fn setup_open_folder_callback(main_window: &MainWindow, state: Arc<Mutex<AppStat
 
             if let Err(e) = open::that(&extraction_path) {
                 tracing::error!("Failed to open folder: {}", e);
-                let error_msg = format!("Failed to open folder:\n{}", e);
+                let error_msg = format!("Failed to open folder:\n{e}");
                 let weak_clone = weak.clone();
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(ui) = weak_clone.upgrade() {
-                        show_toast(&ui, ToastData {
+                        show_toast(&ui, &ToastData {
                             message: error_msg,
                             notification_type: NotificationType::Error,
                             show: true,
@@ -1246,17 +1262,21 @@ fn setup_open_folder_callback(main_window: &MainWindow, state: Arc<Mutex<AppStat
 
 /// Refresh the file table with optional threshold filtering (Phase 2.3)
 fn refresh_file_table(ui: &MainWindow, state: &Arc<Mutex<AppState>>, threshold: Option<u64>) {
-    let app_state = state.lock().unwrap();
-    let entries = app_state.file_entries.entries();
+    let entries = {
+        let app_state = state.lock().unwrap();
+        app_state.file_entries.entries().to_vec()
+    };
 
     // Filter by threshold if provided
-    let filtered_entries: Vec<&FileEntry> = if let Some(threshold_bytes) = threshold {
-        entries.iter()
-            .filter(|e| e.file_size <= threshold_bytes)
-            .collect()
-    } else {
-        entries.iter().collect()
-    };
+    let filtered_entries: Vec<&FileEntry> = threshold.map_or_else(
+        || entries.iter().collect(),
+        |threshold_bytes| {
+            entries
+                .iter()
+                .filter(|e| e.file_size <= threshold_bytes)
+                .collect()
+        },
+    );
 
     let row_data: Vec<FileRowData> = filtered_entries
         .iter()
@@ -1272,7 +1292,7 @@ fn refresh_file_table(ui: &MainWindow, state: &Arc<Mutex<AppState>>, threshold: 
     let total_size: u64 = filtered_entries.iter().map(|e| e.file_size).sum();
 
     ui.set_file_list(ModelRc::new(VecModel::from(row_data)));
-    ui.set_total_files(filtered_entries.len() as i32);
+    ui.set_total_files(filtered_entries.len().try_into().unwrap_or(i32::MAX));
     ui.set_total_size(SharedString::from(format_size(total_size, BINARY)));
 
     tracing::debug!(
@@ -1283,6 +1303,7 @@ fn refresh_file_table(ui: &MainWindow, state: &Arc<Mutex<AppState>>, threshold: 
 }
 
 /// Set up debug log viewer callbacks (Phase 3.3)
+#[allow(clippy::too_many_lines)] // Log viewer has many UI interactions
 fn setup_log_viewer_callbacks(main_window: &MainWindow) {
     use crate::log_viewer::{LogLevel, LogViewer};
 
@@ -1319,12 +1340,12 @@ fn setup_log_viewer_callbacks(main_window: &MainWindow) {
                     .iter()
                     .map(|entry| {
                         let level_str = entry.level.map(|l| l.to_string()).unwrap_or_default();
-                        let color_str = entry.level.map(|l| l.color()).unwrap_or("#FFFFFF");
+                        let color_str = entry.level.map_or("#FFFFFF", |l| l.color());
 
                         // Parse color string to slint::Color
                         let color = slint::Color::from_argb_encoded(
-                            u32::from_str_radix(&color_str[1..], 16).unwrap_or(0xFFFFFFFF)
-                                | 0xFF000000 // Ensure full opacity
+                            u32::from_str_radix(&color_str[1..], 16).unwrap_or(0xFFFF_FFFF)
+                                | 0xFF00_0000 // Ensure full opacity
                         );
 
                         LogRowData {

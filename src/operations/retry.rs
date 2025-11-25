@@ -33,7 +33,7 @@ impl Default for RetryConfig {
 impl RetryConfig {
     /// Create a configuration for quick retries (short delays, few attempts)
     #[must_use]
-    pub fn quick() -> Self {
+    pub const fn quick() -> Self {
         Self {
             max_attempts: 2,
             initial_delay: Duration::from_millis(50),
@@ -44,7 +44,7 @@ impl RetryConfig {
 
     /// Create a configuration for persistent retries (long delays, many attempts)
     #[must_use]
-    pub fn persistent() -> Self {
+    pub const fn persistent() -> Self {
         Self {
             max_attempts: 5,
             initial_delay: Duration::from_millis(200),
@@ -75,12 +75,12 @@ impl RetryConfig {
 /// use std::fs::File;
 ///
 /// let config = RetryConfig::default();
-/// let result = retry_with_config(config, || {
+/// let result = retry_with_config(&config, || {
 ///     File::open("/path/to/file.txt")
 ///         .map_err(|e| e.into())
 /// });
 /// ```
-pub fn retry_with_config<F, T>(config: RetryConfig, mut operation: F) -> Result<T, Error>
+pub fn retry_with_config<F, T>(config: &RetryConfig, mut operation: F) -> Result<T, Error>
 where
     F: FnMut() -> Result<T, Error>,
 {
@@ -143,7 +143,7 @@ pub fn retry<F, T>(operation: F) -> Result<T, Error>
 where
     F: FnMut() -> Result<T, Error>,
 {
-    retry_with_config(RetryConfig::default(), operation)
+    retry_with_config(&RetryConfig::default(), operation)
 }
 
 #[cfg(test)]
@@ -163,7 +163,7 @@ mod tests {
         let counter = Arc::new(AtomicUsize::new(0));
         let counter_clone = Arc::clone(&counter);
 
-        let result = retry_with_config(RetryConfig::quick(), move || {
+        let result = retry_with_config(&RetryConfig::quick(), move || {
             let count = counter_clone.fetch_add(1, Ordering::SeqCst);
             if count < 2 {
                 // Fail with transient error first two times
@@ -203,7 +203,7 @@ mod tests {
             max_delay: Duration::from_millis(10),
         };
 
-        let result: Result<i32, Error> = retry_with_config(config, move || {
+        let result: Result<i32, Error> = retry_with_config(&config, move || {
             counter_clone.fetch_add(1, Ordering::SeqCst);
             Err(Error::IO(std::io::Error::from(std::io::ErrorKind::Interrupted)))
         });

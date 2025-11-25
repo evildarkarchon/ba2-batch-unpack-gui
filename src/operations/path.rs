@@ -194,7 +194,7 @@ pub fn is_valid_file(path: &Path) -> bool {
 ///
 /// An `Option<PathBuf>` containing the parent directory, or `None`
 pub fn get_parent(path: &Path) -> Option<PathBuf> {
-    path.parent().map(|p| p.to_path_buf())
+    path.parent().map(std::path::Path::to_path_buf)
 }
 
 #[cfg(test)]

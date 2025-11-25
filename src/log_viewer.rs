@@ -44,36 +44,36 @@ pub enum LogLevel {
 }
 
 impl LogLevel {
-    /// Convert from tracing::Level
-    pub fn from_tracing_level(level: &Level) -> Self {
+    /// Convert from `tracing::Level`
+    pub const fn from_tracing_level(level: &Level) -> Self {
         match *level {
-            Level::TRACE => LogLevel::Trace,
-            Level::DEBUG => LogLevel::Debug,
-            Level::INFO => LogLevel::Info,
-            Level::WARN => LogLevel::Warn,
-            Level::ERROR => LogLevel::Error,
+            Level::TRACE => Self::Trace,
+            Level::DEBUG => Self::Debug,
+            Level::INFO => Self::Info,
+            Level::WARN => Self::Warn,
+            Level::ERROR => Self::Error,
         }
     }
 
     /// Convert to display string
-    pub fn as_str(&self) -> &'static str {
+    pub const fn as_str(&self) -> &'static str {
         match self {
-            LogLevel::Trace => "TRACE",
-            LogLevel::Debug => "DEBUG",
-            LogLevel::Info => "INFO",
-            LogLevel::Warn => "WARN",
-            LogLevel::Error => "ERROR",
+            Self::Trace => "TRACE",
+            Self::Debug => "DEBUG",
+            Self::Info => "INFO",
+            Self::Warn => "WARN",
+            Self::Error => "ERROR",
         }
     }
 
     /// Get color code for this level (as RGB hex string for Slint)
-    pub fn color(&self) -> &'static str {
+    pub const fn color(&self) -> &'static str {
         match self {
-            LogLevel::Error => "#FF0000",      // Red
-            LogLevel::Warn => "#FF6A5B",       // Light red/orange
-            LogLevel::Info => "#FFFFFF",       // White
-            LogLevel::Debug => "#A0A0A0",      // Light gray
-            LogLevel::Trace => "#808080",      // Gray
+            Self::Error => "#FF0000",      // Red
+            Self::Warn => "#FF6A5B",       // Light red/orange
+            Self::Info => "#FFFFFF",       // White
+            Self::Debug => "#A0A0A0",      // Light gray
+            Self::Trace => "#808080",      // Gray
         }
     }
 }
@@ -87,7 +87,7 @@ impl std::fmt::Display for LogLevel {
 impl LogEntry {
     /// Parse a log line into a structured entry
     ///
-    /// Expected format from tracing_subscriber:
+    /// Expected format from `tracing_subscriber`:
     /// `2025-01-22T10:30:45.123456Z  INFO unpackrr::operations::scan: Starting BA2 scan in: /path/to/folder`
     pub fn parse(line: String) -> Self {
         let mut level = None;
@@ -118,9 +118,7 @@ impl LogEntry {
                 if level.is_some() && parts.len() >= 3 {
                     // Parse target and message
                     // Find the position after timestamp and level in the original string
-                    let after_level = line.find(parts[1])
-                        .and_then(|pos| Some(pos + parts[1].len()))
-                        .unwrap_or(0);
+                    let after_level = line.find(parts[1]).map_or(0, |pos| pos + parts[1].len());
 
                     let rest = line[after_level..].trim_start();
 
@@ -150,8 +148,8 @@ impl LogEntry {
     pub fn matches_filter(&self, filter: Option<LogLevel>) -> bool {
         match (self.level, filter) {
             (Some(entry_level), Some(filter_level)) => entry_level >= filter_level,
-            (None, _) => true,  // Always show unparseable lines
-            (_, None) => true,  // No filter, show all
+            // Always show unparseable lines or if no filter
+            (None, _) | (_, None) => true,
         }
     }
 }
@@ -166,7 +164,7 @@ pub struct LogViewer {
 
 impl LogViewer {
     /// Create a new log viewer
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             entries: Vec::new(),
             filter_level: None,
@@ -221,12 +219,12 @@ impl LogViewer {
     }
 
     /// Set the filter level
-    pub fn set_filter(&mut self, level: Option<LogLevel>) {
+    pub const fn set_filter(&mut self, level: Option<LogLevel>) {
         self.filter_level = level;
     }
 
     /// Get current filter level
-    pub fn get_filter(&self) -> Option<LogLevel> {
+    pub const fn get_filter(&self) -> Option<LogLevel> {
         self.filter_level
     }
 

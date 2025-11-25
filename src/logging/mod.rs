@@ -5,7 +5,7 @@
 //! - Console output with color formatting
 //! - File output with daily rotation
 //! - Configurable log levels
-//! - Environment variable override (RUST_LOG)
+//! - Environment variable override (`RUST_LOG`)
 //! - Integration with application config
 
 use crate::config::{AppConfig, LogLevel};
@@ -49,11 +49,10 @@ use tracing_subscriber::{
 pub fn init(config: Option<&AppConfig>) -> Result<()> {
     // Determine log level from config or default to INFO
     let log_level = config
-        .map(|c| config_log_level_to_tracing(&c.advanced.log_level))
-        .unwrap_or(Level::INFO);
+        .map_or(Level::INFO, |c| config_log_level_to_tracing(c.advanced.log_level));
 
     // Check if debug mode is enabled
-    let show_debug = config.map(|c| c.advanced.show_debug).unwrap_or(false);
+    let show_debug = config.is_some_and(|c| c.advanced.show_debug);
 
     // Create environment filter
     // Priority: RUST_LOG env var > config setting > default (INFO)
@@ -70,7 +69,7 @@ pub fn init(config: Option<&AppConfig>) -> Result<()> {
             }
         };
 
-        EnvFilter::new(format!("unpackrr={},{}=warn", level_str, level_str))
+        EnvFilter::new(format!("unpackrr={level_str},{level_str}=warn"))
     });
 
     // Console layer with color and formatting
@@ -89,9 +88,7 @@ pub fn init(config: Option<&AppConfig>) -> Result<()> {
         .with_filter(env_filter.clone());
 
     // File layer with rotation
-    let file_layer = if let Some(file_appender) = create_file_appender()? {
-        Some(
-            fmt::layer()
+    let file_layer = create_file_appender()?.map(|file_appender| fmt::layer()
                 .with_target(true)
                 .with_thread_ids(true)
                 .with_thread_names(true)
@@ -99,11 +96,7 @@ pub fn init(config: Option<&AppConfig>) -> Result<()> {
                 .with_line_number(true)
                 .with_ansi(false) // No color codes in file
                 .with_writer(file_appender)
-                .with_filter(env_filter),
-        )
-    } else {
-        None
-    };
+                .with_filter(env_filter));
 
     // Build and initialize the subscriber
     let registry = tracing_subscriber::registry().with(console_layer);
@@ -134,12 +127,12 @@ fn create_file_appender() -> Result<Option<tracing_appender::non_blocking::NonBl
 
     // Create daily rotating file appender
     let file_appender = tracing_appender::rolling::daily(&log_dir, "unpackrr.log");
-    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+    let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
 
-    // Note: We're intentionally leaking _guard here because we want logging
+    // Note: We're intentionally leaking guard here because we want logging
     // to persist for the entire application lifetime. In a production app,
     // you'd want to store the guard somewhere (e.g., in main())
-    std::mem::forget(_guard);
+    std::mem::forget(guard);
 
     Ok(Some(non_blocking))
 }
@@ -155,7 +148,7 @@ pub fn get_log_dir() -> Result<PathBuf> {
 }
 
 /// Convert config log level to tracing Level
-fn config_log_level_to_tracing(level: &LogLevel) -> Level {
+const fn config_log_level_to_tracing(level: LogLevel) -> Level {
     match level {
         LogLevel::Fatal | LogLevel::Error => Level::ERROR,
         LogLevel::Warning => Level::WARN,
@@ -172,20 +165,20 @@ mod tests {
     #[test]
     fn test_log_level_conversion() {
         assert_eq!(
-            config_log_level_to_tracing(&LogLevel::Fatal),
+            config_log_level_to_tracing(LogLevel::Fatal),
             Level::ERROR
         );
         assert_eq!(
-            config_log_level_to_tracing(&LogLevel::Error),
+            config_log_level_to_tracing(LogLevel::Error),
             Level::ERROR
         );
         assert_eq!(
-            config_log_level_to_tracing(&LogLevel::Warning),
+            config_log_level_to_tracing(LogLevel::Warning),
             Level::WARN
         );
-        assert_eq!(config_log_level_to_tracing(&LogLevel::Info), Level::INFO);
-        assert_eq!(config_log_level_to_tracing(&LogLevel::Debug), Level::DEBUG);
-        assert_eq!(config_log_level_to_tracing(&LogLevel::Trace), Level::TRACE);
+        assert_eq!(config_log_level_to_tracing(LogLevel::Info), Level::INFO);
+        assert_eq!(config_log_level_to_tracing(LogLevel::Debug), Level::DEBUG);
+        assert_eq!(config_log_level_to_tracing(LogLevel::Trace), Level::TRACE);
     }
 
     #[test]

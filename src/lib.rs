@@ -44,7 +44,10 @@ pub static RUNTIME: OnceLock<Runtime> = OnceLock::new();
 /// Get a reference to the global Tokio runtime
 ///
 /// Initializes the runtime if it hasn't been created yet.
-/// Panics if the runtime cannot be created.
+///
+/// # Panics
+///
+/// Panics if the Tokio runtime cannot be created.
 pub fn get_runtime() -> &'static Runtime {
     RUNTIME.get_or_init(|| {
         tokio::runtime::Builder::new_multi_thread()

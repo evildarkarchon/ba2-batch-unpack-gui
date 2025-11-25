@@ -81,13 +81,12 @@ pub async fn check_for_updates() -> Result<Option<UpdateInfo>> {
 
     // Build GitHub API URL
     let url = format!(
-        "https://api.github.com/repos/{}/{}/releases/latest",
-        GITHUB_OWNER, GITHUB_REPO
+        "https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/releases/latest"
     );
 
     // Fetch latest release from GitHub
     let client = reqwest::Client::builder()
-        .user_agent(format!("unpackrr/{}", CURRENT_VERSION))
+        .user_agent(format!("unpackrr/{CURRENT_VERSION}"))
         .build()
         .context("Failed to create HTTP client")?;
 
@@ -148,7 +147,7 @@ pub async fn check_for_updates() -> Result<Option<UpdateInfo>> {
 /// which semver doesn't accept. This function strips the prefix if present.
 fn parse_version(version_str: &str) -> Result<Version> {
     let cleaned = version_str.trim_start_matches('v');
-    Version::parse(cleaned).with_context(|| format!("Failed to parse version: {}", version_str))
+    Version::parse(cleaned).with_context(|| format!("Failed to parse version: {version_str}"))
 }
 
 #[cfg(test)]

@@ -77,9 +77,9 @@ impl ToastData {
 /// use unpackrr::ui::notifications::{show_toast, ToastData};
 ///
 /// // Assuming you have a MainWindow instance
-/// show_toast(&window, ToastData::success("Operation completed!"));
+/// show_toast(&window, &ToastData::success("Operation completed!"));
 /// ```
-pub fn show_toast(window: &MainWindow, toast: ToastData) {
+pub fn show_toast(window: &MainWindow, toast: &ToastData) {
     let current_toasts = window.get_toasts();
     let mut toasts_vec = Vec::new();
 
@@ -122,11 +122,10 @@ fn dismiss_toast(window: &MainWindow, index: usize) {
     let mut toasts_vec = Vec::new();
 
     for i in 0..current_toasts.row_count() {
-        if i != index {
-            if let Some(toast_tuple) = current_toasts.row_data(i) {
+        if i != index
+            && let Some(toast_tuple) = current_toasts.row_data(i) {
                 toasts_vec.push(toast_tuple);
             }
-        }
     }
 
     let new_model = Rc::new(VecModel::from(toasts_vec));
@@ -204,12 +203,14 @@ impl DialogConfig {
     }
 
     /// Set the primary button text
+    #[must_use]
     pub fn with_primary_button(mut self, text: impl Into<String>) -> Self {
         self.primary_button = text.into();
         self
     }
 
     /// Set the secondary button text
+    #[must_use]
     pub fn with_secondary_button(mut self, text: impl Into<String>) -> Self {
         self.secondary_button = Some(text.into());
         self

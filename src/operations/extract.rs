@@ -68,7 +68,7 @@ pub struct ExtractionResult {
 
 impl ExtractionResult {
     /// Create a new empty result
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             file_results: Vec::new(),
             successful: 0,
@@ -122,6 +122,10 @@ impl Default for ExtractionResult {
 /// # Returns
 ///
 /// `Ok(())` if extraction succeeds, `Err` otherwise
+///
+/// # Panics
+///
+/// Panics if `ba2_path` does not have a parent directory (i.e., it is the root path), which should not happen for valid file paths.
 pub async fn extract_ba2_file(
     ba2_path: &Path,
     output_dir: Option<&Path>,
@@ -161,7 +165,7 @@ pub async fn extract_ba2_file(
     // On Windows, hide the console window to prevent flickering
     #[cfg(target_os = "windows")]
     {
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
 
@@ -188,12 +192,16 @@ pub async fn extract_ba2_file(
 /// # Arguments
 ///
 /// * `files` - List of file entries to extract
-/// * `config` - Application configuration (for BSArch path)
+/// * `config` - Application configuration (for `BSArch` path)
 /// * `progress_tx` - Optional channel for progress updates
 ///
 /// # Returns
 ///
 /// `ExtractionResult` with details about successful and failed extractions
+///
+/// # Panics
+///
+/// Panics if the concurrency semaphore is closed, which is unexpected during normal operation.
 pub async fn extract_all(
     files: Vec<FileEntry>,
     config: AppConfig,
@@ -211,7 +219,7 @@ pub async fn extract_all(
     // Determine concurrency limit
     // Use number of logical cores, capped between 1 and 8 to avoid resource exhaustion
     let concurrency_limit = std::thread::available_parallelism()
-        .map(|n| n.get())
+        .map(std::num::NonZero::get)
         .unwrap_or(4)
         .clamp(1, 8);
     
@@ -230,7 +238,7 @@ pub async fn extract_all(
             
             // We must clone the data we need before the async block
             let file_path = file_entry.full_path.clone();
-            let file_name = file_entry.file_name.clone();
+            let file_name = file_entry.file_name;
             
             async move {
                 // Acquire permit to limit concurrency

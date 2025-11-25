@@ -16,6 +16,7 @@ use std::path::{Path, PathBuf};
 
 /// Main application configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct AppConfig {
     /// Extraction-related settings
     pub extraction: ExtractionConfig,
@@ -56,6 +57,7 @@ pub struct ExtractionConfig {
 
 /// Saved user settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct SavedConfig {
     /// Last used directory
     #[serde(default)]
@@ -110,12 +112,14 @@ pub struct AdvancedConfig {
 /// Log level enumeration
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
+#[derive(Default)]
 pub enum LogLevel {
     /// Fatal errors (most critical)
     Fatal = 0,
     /// Error messages
     Error = 1,
     /// Warning messages
+    #[default]
     Warning = 2,
     /// Informational messages
     Info = 3,
@@ -142,21 +146,10 @@ fn default_postfixes() -> Vec<String> {
     ]
 }
 
-fn default_true() -> bool {
+const fn default_true() -> bool {
     true
 }
 
-impl Default for AppConfig {
-    fn default() -> Self {
-        Self {
-            extraction: ExtractionConfig::default(),
-            saved: SavedConfig::default(),
-            appearance: AppearanceConfig::default(),
-            advanced: AdvancedConfig::default(),
-            update: UpdateConfig::default(),
-        }
-    }
-}
 
 impl Default for ExtractionConfig {
     fn default() -> Self {
@@ -169,14 +162,6 @@ impl Default for ExtractionConfig {
     }
 }
 
-impl Default for SavedConfig {
-    fn default() -> Self {
-        Self {
-            directory: String::new(),
-            threshold: 0,
-        }
-    }
-}
 
 impl Default for AppearanceConfig {
     fn default() -> Self {
@@ -201,11 +186,6 @@ impl Default for AdvancedConfig {
     }
 }
 
-impl Default for LogLevel {
-    fn default() -> Self {
-        Self::Warning
-    }
-}
 
 impl Default for UpdateConfig {
     fn default() -> Self {
@@ -288,9 +268,12 @@ impl AppConfig {
     pub fn validate(&self) -> Result<()> {
         // Validate postfixes - all must end with .ba2
         for postfix in &self.extraction.postfixes {
-            if !postfix.ends_with(".ba2") {
+            if !Path::new(postfix)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("ba2"))
+            {
                 return Err(ConfigError::ValidationFailed(
-                    format!("Postfix '{}' must end with .ba2", postfix)
+                    format!("Postfix '{postfix}' must end with .ba2")
                 ).into());
             }
         }
@@ -322,14 +305,13 @@ impl AppConfig {
 
         // Validate ignored files regex patterns if they look like regex
         for pattern in &self.extraction.ignored_files {
-            if looks_like_regex(pattern) {
-                if let Err(e) = Regex::new(pattern) {
+            if looks_like_regex(pattern)
+                && let Err(e) = Regex::new(pattern) {
                     return Err(ConfigError::InvalidRegex {
                         pattern: pattern.clone(),
                         source: e,
                     }.into());
                 }
-            }
         }
 
         Ok(())
@@ -368,9 +350,8 @@ impl AppConfig {
     /// `true` if the file should be ignored, `false` otherwise
     pub fn should_ignore_file(&self, path: &Path) -> bool {
         // Get file name for checking
-        let file_name = match path.file_name().and_then(|n| n.to_str()) {
-            Some(name) => name,
-            None => return false,
+        let Some(file_name) = path.file_name().and_then(|n| n.to_str()) else {
+            return false;
         };
 
         // Check exact path match

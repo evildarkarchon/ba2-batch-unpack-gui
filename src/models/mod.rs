@@ -35,8 +35,8 @@ pub struct FileEntry {
 }
 
 impl FileEntry {
-    /// Create a new FileEntry
-    pub fn new(
+    /// Create a new `FileEntry`
+    pub const fn new(
         file_name: String,
         file_size: u64,
         num_files: u32,
@@ -75,12 +75,12 @@ impl FileEntry {
     }
 
     /// Check if this file is marked as bad
-    pub fn is_corrupted(&self) -> bool {
+    pub const fn is_corrupted(&self) -> bool {
         self.is_bad
     }
 }
 
-/// Convert from BA2FileInfo to FileEntry
+/// Convert from `BA2FileInfo` to `FileEntry`
 impl From<BA2FileInfo> for FileEntry {
     fn from(info: BA2FileInfo) -> Self {
         Self {
@@ -140,18 +140,18 @@ pub struct FileEntryList {
 
 impl FileEntryList {
     /// Create a new empty list
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             entries: Vec::new(),
         }
     }
 
     /// Create from a vector of entries
-    pub fn from_vec(entries: Vec<FileEntry>) -> Self {
+    pub const fn from_vec(entries: Vec<FileEntry>) -> Self {
         Self { entries }
     }
 
-    /// Create from BA2FileInfo results
+    /// Create from `BA2FileInfo` results
     pub fn from_scan_results(results: Vec<BA2FileInfo>) -> Self {
         Self {
             entries: results.into_iter().map(FileEntry::from).collect(),
@@ -164,12 +164,12 @@ impl FileEntryList {
     }
 
     /// Get the number of entries
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.entries.len()
     }
 
     /// Check if the list is empty
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
 
@@ -179,7 +179,7 @@ impl FileEntryList {
     }
 
     /// Get a mutable reference to all entries
-    pub fn entries_mut(&mut self) -> &mut Vec<FileEntry> {
+    pub const fn entries_mut(&mut self) -> &mut Vec<FileEntry> {
         &mut self.entries
     }
 

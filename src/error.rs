@@ -158,7 +158,7 @@ impl Error {
 
     /// Check if this error is a BA2 corruption error
     #[must_use]
-    pub fn is_ba2_corrupted(&self) -> bool {
+    pub const fn is_ba2_corrupted(&self) -> bool {
         matches!(self, Self::BA2(BA2Error::Corrupted { .. }))
     }
 
@@ -333,6 +333,7 @@ impl Error {
     /// suitable for debugging or copying to bug reports.
     #[must_use]
     pub fn detailed_report(&self) -> String {
+        use std::fmt::Write;
         let mut report = String::new();
 
         // Error type
@@ -366,14 +367,14 @@ impl Error {
         if !suggestions.is_empty() {
             report.push_str("Recovery Suggestions:\n");
             for (i, suggestion) in suggestions.iter().enumerate() {
-                report.push_str(&format!("{}. {}\n", i + 1, suggestion));
+                let _ = writeln!(report, "{}. {}", i + 1, suggestion);
             }
             report.push('\n');
         }
 
         // Version info for bug reports
-        report.push_str(&format!("Version: {}\n", env!("CARGO_PKG_VERSION")));
-        report.push_str(&format!("Platform: {}\n", std::env::consts::OS));
+        let _ = writeln!(report, "Version: {}", env!("CARGO_PKG_VERSION"));
+        let _ = writeln!(report, "Platform: {}", std::env::consts::OS);
 
         report
     }
