@@ -1440,7 +1440,7 @@ component SettingsComboBox inherits Rectangle {
 // Settings Screen
 component SettingsScreen inherits Rectangle {
     // Configuration properties (to be bound from Rust)
-    in-out property <string> postfixes-value: "- Textures";
+    in-out property <string> postfixes-value: "- Main";
     in-out property <string> ignored-files-value: "";
     in-out property <bool> ignore-bad-files: false;
     in-out property <bool> auto-backup: false;
@@ -1492,7 +1492,7 @@ component SettingsScreen inherits Rectangle {
 
                     SettingsInput {
                         label: "Postfixes";
-                        placeholder: "e.g., - Textures, - Main";
+                        placeholder: "e.g., - Main, - Textures";
                         value <=> postfixes-value;
                         changed(val) => {
                             setting-changed("postfixes", val);
@@ -2562,7 +2562,7 @@ export component MainWindow inherits Window {
     in-out property <string> dialog-secondary-button: "";
 
     // Settings screen state (Phase 2.2)
-    in-out property <string> settings-postfixes: "- Textures";
+    in-out property <string> settings-postfixes: "- Main";
     in-out property <string> settings-ignored-files: "";
     in-out property <bool> settings-ignore-bad: false;
     in-out property <bool> settings-auto-backup: false;

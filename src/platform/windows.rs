@@ -19,9 +19,8 @@ use winreg::RegKey;
 ///
 /// # Returns
 ///
-/// - `Ok(Some(PathBuf))` - Path to the default BA2 handler executable
-/// - `Ok(None)` - No default handler found
-/// - `Err(_)` - Registry access error
+/// - `Some(PathBuf)` - Path to the default BA2 handler executable
+/// - `None` - No default handler found or error accessing registry
 ///
 /// # Examples
 ///
@@ -29,9 +28,8 @@ use winreg::RegKey;
 /// use unpackrr::platform::get_default_ba2_handler;
 ///
 /// match get_default_ba2_handler() {
-///     Ok(Some(path)) => println!("Default BA2 handler: {}", path.display()),
-///     Ok(None) => println!("No default BA2 handler found"),
-///     Err(e) => eprintln!("Error: {}", e),
+///     Some(path) => println!("Default BA2 handler: {}", path.display()),
+///     None => println!("No default BA2 handler found"),
 /// }
 /// ```
 pub fn get_default_ba2_handler() -> Option<PathBuf> {
