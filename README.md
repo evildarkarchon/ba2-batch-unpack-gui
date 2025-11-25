@@ -346,11 +346,7 @@ See [LICENSE](LICENSE) for full terms.
 ## Roadmap
 
 ### Planned Features
-- Multi-language support (internationalization)
 - UI animations and polish
-- CLI mode for scripting
-- Additional BA2 format support as BSArch.exe evolves
-- Potential Linux support (if BA2 tools become available)
 
 ### Not Planned
 - BA2 creation/packing features (use BSArch.exe or Creation Kit directly)
