@@ -211,7 +211,14 @@ pub async fn extract_all(
 
     // Use external BA2 tool if specified, otherwise use bundled BSArch.exe
     let bsarch_path = if config.advanced.ext_ba2_exe.is_empty() {
-        PathBuf::from("BSArch.exe") // Default to bundled version
+        // Default to bundled version in the same directory as the executable
+        match std::env::current_exe() {
+            Ok(exe_path) => exe_path
+                .parent()
+                .map(|p| p.join("BSArch.exe"))
+                .unwrap_or_else(|| PathBuf::from("BSArch.exe")),
+            Err(_) => PathBuf::from("BSArch.exe"),
+        }
     } else {
         PathBuf::from(&config.advanced.ext_ba2_exe)
     };

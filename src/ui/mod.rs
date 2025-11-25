@@ -867,53 +867,10 @@ fn setup_update_checker_callback(main_window: &MainWindow) {
 ///
 /// Detects the default BA2 file handler on Windows and auto-populates
 /// the external tool setting if it's empty.
-fn setup_platform_integration(main_window: &MainWindow, state: &Arc<Mutex<AppState>>) {
+fn setup_platform_integration(_main_window: &MainWindow, _state: &Arc<Mutex<AppState>>) {
     tracing::info!("Initializing platform integration (Phase 2.9)");
-
-    // Try to detect the default BA2 handler
-    match crate::platform::get_default_ba2_handler() {
-        Some(handler_path) => {
-            tracing::info!("Detected default BA2 handler: {}", handler_path.display());
-
-            // Check if the external tool path is empty in config
-            let should_populate = {
-                let app_state = state.lock().unwrap();
-                app_state.config.advanced.ext_ba2_exe.is_empty()
-            };
-
-            if should_populate {
-                // Update the config with the detected handler
-                let handler_str = handler_path.to_string_lossy().to_string();
-
-                {
-                    let mut app_state = state.lock().unwrap();
-                    app_state.config.advanced.ext_ba2_exe.clone_from(&handler_str);
-
-                    // Save the updated config
-                    if let Err(e) = app_state.config.save() {
-                        tracing::error!("Failed to save config with auto-detected BA2 handler: {}", e);
-                    } else {
-                        tracing::info!("Auto-populated external BA2 tool: {}", handler_str);
-                    }
-                }
-
-                // Update the UI
-                main_window.set_settings_external_tool(SharedString::from(handler_str.clone()));
-
-                // Show a toast notification
-                show_toast(main_window, &ToastData {
-                    message: format!("Auto-detected BA2 handler: {handler_str}"),
-                    notification_type: NotificationType::Info,
-                    show: true,
-                });
-            } else {
-                tracing::debug!("External BA2 tool already configured, skipping auto-detection");
-            }
-        }
-        None => {
-            tracing::info!("No default BA2 handler detected (this is normal on non-Windows platforms)");
-        }
-    }
+    // Registry use is not required; we rely on the bundled BSArch.exe by default.
+    // Auto-detection logic removed.
 }
 
 /// Set up threshold filtering callbacks (Phase 2.3)
