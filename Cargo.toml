@@ -75,6 +75,7 @@ semver = "1.0"
 
 # Open URLs in browser (Phase 2.6)
 open = "5.0"
+futures = "0.3.31"
 
 # Windows-only dependencies (Phase 2.9)
 [target.'cfg(windows)'.dependencies]

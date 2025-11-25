@@ -187,26 +187,26 @@ fn setup_scan_callback(main_window: &MainWindow, state: Arc<Mutex<AppState>>) {
             ui.set_status_text(SharedString::from("Scanning for BA2 files..."));
         }
 
-        // Run scan in background thread with Tokio runtime
-        std::thread::spawn(move || {
-            let rt = tokio::runtime::Runtime::new().unwrap();
-            rt.block_on(async move {
-                let path = PathBuf::from(&folder);
-                let (tx, mut rx) = mpsc::channel(100);
+        // Run scan in background task using global runtime
+        crate::get_runtime().spawn(async move {
+            let path = PathBuf::from(&folder);
+            let (tx, mut rx) = mpsc::channel(100);
 
-                // Get config
-                let config = {
-                    let app_state = state_clone.lock().unwrap();
-                    app_state.config.clone()
-                };
+            // Get config
+            let config = {
+                let app_state = state_clone.lock().unwrap();
+                app_state.config.clone()
+            };
 
-                // Spawn scan task
-                let scan_task = tokio::spawn(async move {
-                    scan_for_ba2(&path, &config, Some(tx)).await
-                });
+            // Spawn scan task
+            // Note: scan_for_ba2 uses rayon internally which blocks, so we use the global runtime
+            // which is multi-threaded. Ideally this would be spawn_blocking if scan_for_ba2 was sync.
+            let scan_task = tokio::spawn(async move {
+                scan_for_ba2(&path, &config, Some(tx)).await
+            });
 
-                // Process progress updates
-                while let Some(progress) = rx.recv().await {
+            // Process progress updates
+            while let Some(progress) = rx.recv().await {
                     let weak = weak_clone.clone();
                     let status = match progress {
                         ScanProgress::Started { total_dirs } => {
@@ -312,7 +312,6 @@ fn setup_scan_callback(main_window: &MainWindow, state: Arc<Mutex<AppState>>) {
                     }
                 }
             });
-        });
     });
 }
 
@@ -337,11 +336,9 @@ fn setup_extraction_callback(
             ui.set_status_text(SharedString::from("Starting extraction..."));
         }
 
-        // Run extraction in background thread
-        std::thread::spawn(move || {
-            let rt = tokio::runtime::Runtime::new().unwrap();
-            rt.block_on(async move {
-                let (tx, mut rx) = mpsc::channel(100);
+        // Run extraction in background task using global runtime
+        crate::get_runtime().spawn(async move {
+            let (tx, mut rx) = mpsc::channel(100);
 
                 // Phase 2.3: Create control channel
                 let (control_tx, mut control_rx) = tokio::sync::mpsc::unbounded_channel();
@@ -365,7 +362,7 @@ fn setup_extraction_callback(
 
                 // Spawn extraction task
                 let extract_task = tokio::spawn(async move {
-                    extract_all(&files, &config, Some(tx)).await
+                    extract_all(files, config, Some(tx)).await
                 });
 
                 // Phase 2.3: Track pause state
@@ -663,7 +660,6 @@ fn setup_extraction_callback(
                     }
                 }
             });
-        });
     });
 }
 
@@ -783,11 +779,9 @@ fn setup_update_checker_callback(main_window: &MainWindow) {
             });
         }
 
-        // Run update check in background thread
-        std::thread::spawn(move || {
-            let rt = tokio::runtime::Runtime::new().unwrap();
-            rt.block_on(async move {
-                match crate::update_checker::check_for_updates().await {
+        // Run update check in background task using global runtime
+        crate::get_runtime().spawn(async move {
+            match crate::update_checker::check_for_updates().await {
                     Ok(Some(update_info)) => {
                         // Update available
                         tracing::info!(
@@ -857,7 +851,6 @@ fn setup_update_checker_callback(main_window: &MainWindow) {
                     }
                 }
             });
-        });
     });
 }
 
@@ -1462,7 +1455,6 @@ fn setup_log_viewer_callbacks(main_window: &MainWindow) {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn test_slint_module_exists() {

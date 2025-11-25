@@ -31,3 +31,25 @@ pub mod ui;
 pub mod update_checker;
 
 pub use error::{Error, Result};
+
+use std::sync::OnceLock;
+use tokio::runtime::Runtime;
+
+/// Global Tokio Runtime for background tasks
+///
+/// This shared runtime avoids the overhead of creating a new runtime
+/// for every background operation. It is initialized on first use.
+pub static RUNTIME: OnceLock<Runtime> = OnceLock::new();
+
+/// Get a reference to the global Tokio runtime
+///
+/// Initializes the runtime if it hasn't been created yet.
+/// Panics if the runtime cannot be created.
+pub fn get_runtime() -> &'static Runtime {
+    RUNTIME.get_or_init(|| {
+        tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .expect("Failed to create Tokio runtime")
+    })
+}

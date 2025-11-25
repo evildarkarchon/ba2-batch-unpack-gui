@@ -2,7 +2,7 @@
 //!
 //! Provides Windows registry access to detect default BA2 file handlers.
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use std::path::PathBuf;
 use winreg::enums::*;
 use winreg::RegKey;

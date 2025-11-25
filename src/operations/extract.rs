@@ -6,9 +6,11 @@
 use crate::config::AppConfig;
 use crate::error::{BA2Error, Result};
 use crate::models::FileEntry;
+use futures::stream::{self, StreamExt};
 use std::path::{Path, PathBuf};
-use std::process::Command;
-use tokio::sync::mpsc;
+use std::sync::Arc;
+use tokio::process::Command;
+use tokio::sync::{mpsc, Semaphore};
 
 /// Progress updates during extraction
 #[derive(Debug, Clone)]
@@ -143,7 +145,7 @@ pub async fn extract_ba2_file(
     }
 
     // Determine output directory
-    let output = output_dir.unwrap_or_else(|| {
+    let output_path = output_dir.unwrap_or_else(|| {
         ba2_path
             .parent()
             .expect("BA2 file should have a parent directory")
@@ -151,15 +153,22 @@ pub async fn extract_ba2_file(
 
     // Build BSArch command
     // Format: BSArch.exe unpack <ba2_file> <output_dir>
-    let output = Command::new(bsarch_path)
-        .arg("unpack")
+    let mut cmd = Command::new(bsarch_path);
+    cmd.arg("unpack")
         .arg(ba2_path)
-        .arg(output)
-        .output()
-        .map_err(|e| BA2Error::ExtractionFailed {
-            path: ba2_path.to_path_buf(),
-            reason: format!("Failed to spawn BSArch.exe: {e}"),
-        })?;
+        .arg(output_path);
+
+    // On Windows, hide the console window to prevent flickering
+    #[cfg(target_os = "windows")]
+    {
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let output = cmd.output().await.map_err(|e| BA2Error::ExtractionFailed {
+        path: ba2_path.to_path_buf(),
+        reason: format!("Failed to spawn BSArch.exe: {e}"),
+    })?;
 
     // Check if extraction was successful
     if !output.status.success() {
@@ -174,7 +183,7 @@ pub async fn extract_ba2_file(
     Ok(())
 }
 
-/// Extract multiple BA2 files with progress reporting
+/// Extract multiple BA2 files with progress reporting and parallelism
 ///
 /// # Arguments
 ///
@@ -186,74 +195,105 @@ pub async fn extract_ba2_file(
 ///
 /// `ExtractionResult` with details about successful and failed extractions
 pub async fn extract_all(
-    files: &[FileEntry],
-    config: &AppConfig,
+    files: Vec<FileEntry>,
+    config: AppConfig,
     progress_tx: Option<mpsc::Sender<ExtractionProgress>>,
 ) -> Result<ExtractionResult> {
-    let mut result = ExtractionResult::new();
     let total = files.len();
 
     // Use external BA2 tool if specified, otherwise use bundled BSArch.exe
-    // TODO: Determine bundled BSArch.exe path (should be relative to executable)
     let bsarch_path = if config.advanced.ext_ba2_exe.is_empty() {
         PathBuf::from("BSArch.exe") // Default to bundled version
     } else {
         PathBuf::from(&config.advanced.ext_ba2_exe)
     };
 
-    for (index, file_entry) in files.iter().enumerate() {
-        let current = index + 1;
+    // Determine concurrency limit
+    // Use number of logical cores, capped between 1 and 8 to avoid resource exhaustion
+    let concurrency_limit = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(4)
+        .clamp(1, 8);
+    
+    tracing::debug!("Extracting with concurrency limit: {}", concurrency_limit);
 
-        // Send progress update - started
-        if let Some(ref tx) = progress_tx {
-            let _ = tx
-                .send(ExtractionProgress::Started {
-                    file_name: file_entry.file_name.clone(),
-                    current,
-                    total,
-                })
-                .await;
-        }
+    let semaphore = Arc::new(Semaphore::new(concurrency_limit));
+    let current_counter = Arc::new(std::sync::atomic::AtomicUsize::new(0));
 
-        // Attempt extraction
-        let extraction_result = match extract_ba2_file(&file_entry.full_path, None, &bsarch_path).await {
-            Ok(()) => FileExtractionResult {
-                file_path: file_entry.full_path.clone(),
-                success: true,
-                error: None,
-            },
-            Err(e) => FileExtractionResult {
-                file_path: file_entry.full_path.clone(),
-                success: false,
-                error: Some(e.to_string()),
-            },
-        };
+    // Create a stream of extraction futures
+    let results: Vec<FileExtractionResult> = stream::iter(files)
+        .map(|file_entry| {
+            let bsarch_path = bsarch_path.clone();
+            let progress_tx = progress_tx.clone();
+            let semaphore = semaphore.clone();
+            let current_counter = current_counter.clone();
+            
+            // We must clone the data we need before the async block
+            let file_path = file_entry.full_path.clone();
+            let file_name = file_entry.file_name.clone();
+            
+            async move {
+                // Acquire permit to limit concurrency
+                let _permit = semaphore.acquire().await.unwrap();
+                
+                let current = current_counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
 
-        // Send progress update - completed
-        if let Some(ref tx) = progress_tx {
-            let _ = tx
-                .send(ExtractionProgress::Completed {
-                    file_name: file_entry.file_name.clone(),
-                    success: extraction_result.success,
-                    error: extraction_result.error.clone(),
-                })
-                .await;
-        }
+                // Send started progress
+                if let Some(ref tx) = progress_tx {
+                    let _ = tx.send(ExtractionProgress::Started {
+                        file_name: file_name.clone(),
+                        current,
+                        total,
+                    }).await;
+                }
 
-        result.add_result(extraction_result);
+                // Perform extraction
+                let extraction_result = match extract_ba2_file(&file_path, None, &bsarch_path).await {
+                    Ok(()) => FileExtractionResult {
+                        file_path: file_path.clone(),
+                        success: true,
+                        error: None,
+                    },
+                    Err(e) => FileExtractionResult {
+                        file_path: file_path.clone(),
+                        success: false,
+                        error: Some(e.to_string()),
+                    },
+                };
+
+                // Send completed progress
+                if let Some(ref tx) = progress_tx {
+                    let _ = tx.send(ExtractionProgress::Completed {
+                        file_name: file_name.clone(),
+                        success: extraction_result.success,
+                        error: extraction_result.error.clone(),
+                    }).await;
+                }
+
+                extraction_result
+            }
+        })
+        .buffer_unordered(concurrency_limit) // Run up to concurrency_limit futures in parallel
+        .collect()
+        .await;
+
+    // Aggregate results
+    let mut final_result = ExtractionResult::new();
+    for res in results {
+        final_result.add_result(res);
     }
 
     // Send final progress update
     if let Some(ref tx) = progress_tx {
         let _ = tx
             .send(ExtractionProgress::Finished {
-                successful: result.successful,
-                failed: result.failed,
+                successful: final_result.successful,
+                failed: final_result.failed,
             })
             .await;
     }
 
-    Ok(result)
+    Ok(final_result)
 }
 
 #[cfg(test)]

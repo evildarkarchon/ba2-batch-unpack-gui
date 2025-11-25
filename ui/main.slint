@@ -1,7 +1,7 @@
 // Main window for Unpackrr-rs
 // Fluent Design styled BA2 batch unpacker
 
-import { VerticalBox, HorizontalBox, Button, ListView, ScrollView } from "std-widgets.slint";
+import { VerticalBox, HorizontalBox, Button, ListView, ScrollView, Palette } from "std-widgets.slint";
 
 // Fluent Design Color Palette (Phase 2.4 - Enhanced Theme System)
 global Colors {
@@ -12,7 +12,7 @@ global Colors {
     in-out property <color> custom-accent: #0078d4; // Default Fluent blue
 
     // Computed dark mode state
-    property <bool> dark-mode: theme-mode == 1 || (theme-mode == 2 && false); // TODO: System detection
+    property <bool> dark-mode: theme-mode == 1 || (theme-mode == 2 && Palette.color-scheme == ColorScheme.dark);
 
     // Base colors - adapt to theme
     out property <color> background: dark-mode ? #1e1e1e : #f3f3f3;
@@ -1875,7 +1875,7 @@ export enum NotificationType {
 }
 
 // Toast notification component (InfoBar equivalent)
-export component ToastNotification inherits Rectangle {
+component ToastNotification inherits Rectangle {
     in property <string> message;
     in property <NotificationType> notification-type: NotificationType.Info;
     in-out property <bool> show: false;
@@ -2030,7 +2030,7 @@ component DialogButton inherits Rectangle {
 }
 
 // Modal dialog component
-export component MessageDialog inherits Rectangle {
+component MessageDialog inherits Rectangle {
     in property <string> title;
     in property <string> message;
     in property <NotificationType> dialog-type: NotificationType.Info;
@@ -2159,7 +2159,7 @@ export component MessageDialog inherits Rectangle {
 }
 
 // Phase 3.3: Debug Log Viewer Dialog
-export component LogViewDialog inherits Rectangle {
+component LogViewDialog inherits Rectangle {
     in property <bool> show: false;
     in-out property <[LogRowData]> log-entries: [];
     in-out property <int> filter-level: -1; // -1 = All, 0 = ERROR, 1 = WARN, 2 = INFO, 3 = DEBUG, 4 = TRACE
@@ -2464,7 +2464,7 @@ export component LogViewDialog inherits Rectangle {
 }
 
 // Toast notification container (manages multiple toasts)
-export component ToastContainer inherits Rectangle {
+component ToastContainer inherits Rectangle {
     in-out property <[{message: string, type: NotificationType, show: bool}]> toasts: [];
 
     width: 100%;

@@ -5174,6 +5174,7 @@ dependencies = [
  "async-compat",
  "directories",
  "dunce",
+ "futures",
  "humansize",
  "memmap2",
  "open",

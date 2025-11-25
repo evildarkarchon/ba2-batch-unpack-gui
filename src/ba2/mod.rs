@@ -8,10 +8,6 @@
 //! Note: We use BSArch.exe (MPL-2.0 licensed) as the extraction engine.
 //! This module wraps it with a Rust-friendly API.
 
-mod extractor;
-
-pub use extractor::{extract_ba2, list_ba2, BSArchConfig};
-
 use crate::error::{BA2Error, Result};
 use std::fs::File;
 use std::io::{BufReader, Read};
