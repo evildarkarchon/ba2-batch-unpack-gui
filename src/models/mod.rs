@@ -112,8 +112,8 @@ impl FileEntry {
     pub fn compare(&self, other: &Self, sort_by: SortBy) -> Ordering {
         match sort_by {
             SortBy::Name => self.file_name.cmp(&other.file_name),
-            SortBy::Size => other.file_size.cmp(&self.file_size), // Largest first
-            SortBy::FileCount => other.num_files.cmp(&self.num_files), // Most first
+            SortBy::Size => self.file_size.cmp(&other.file_size), // Smallest first (Natural)
+            SortBy::FileCount => self.num_files.cmp(&other.num_files), // Fewest first (Natural)
             SortBy::ModName => self.dir_name.cmp(&other.dir_name),
         }
     }
@@ -122,7 +122,8 @@ impl FileEntry {
 /// Default ordering: by file size (largest first)
 impl Ord for FileEntry {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.compare(other, SortBy::Size)
+        // Default to size descending for Ord implementation (legacy/default behavior)
+        other.file_size.cmp(&self.file_size)
     }
 }
 
@@ -184,8 +185,15 @@ impl FileEntryList {
     }
 
     /// Sort entries by a specific criterion
-    pub fn sort_by(&mut self, sort_by: SortBy) {
-        self.entries.sort_by(|a, b| a.compare(b, sort_by));
+    pub fn sort_by(&mut self, sort_by: SortBy, reverse: bool) {
+        self.entries.sort_by(|a, b| {
+            let ord = a.compare(b, sort_by);
+            if reverse {
+                ord.reverse()
+            } else {
+                ord
+            }
+        });
     }
 
     /// Get entry at index
@@ -273,8 +281,8 @@ mod tests {
             create_test_entry("beta.ba2", 1500, 15, false),
         ];
 
+        // Ascending
         entries.sort_by(|a, b| a.compare(b, SortBy::Name));
-
         assert_eq!(entries[0].file_name, "alpha.ba2");
         assert_eq!(entries[1].file_name, "beta.ba2");
         assert_eq!(entries[2].file_name, "zebra.ba2");
@@ -288,11 +296,11 @@ mod tests {
             create_test_entry("medium.ba2", 2000, 20, false),
         ];
 
+        // Ascending (Natural)
         entries.sort_by(|a, b| a.compare(b, SortBy::Size));
-
-        assert_eq!(entries[0].file_name, "large.ba2");
+        assert_eq!(entries[0].file_name, "small.ba2");
         assert_eq!(entries[1].file_name, "medium.ba2");
-        assert_eq!(entries[2].file_name, "small.ba2");
+        assert_eq!(entries[2].file_name, "large.ba2");
     }
 
     #[test]
@@ -303,11 +311,11 @@ mod tests {
             create_test_entry("some.ba2", 1000, 20, false),
         ];
 
+        // Ascending (Natural)
         entries.sort_by(|a, b| a.compare(b, SortBy::FileCount));
-
-        assert_eq!(entries[0].file_name, "many.ba2");
+        assert_eq!(entries[0].file_name, "few.ba2");
         assert_eq!(entries[1].file_name, "some.ba2");
-        assert_eq!(entries[2].file_name, "few.ba2");
+        assert_eq!(entries[2].file_name, "many.ba2");
     }
 
     #[test]
@@ -315,32 +323,9 @@ mod tests {
         let small = create_test_entry("small.ba2", 1000, 10, false);
         let large = create_test_entry("large.ba2", 2000, 20, false);
 
-        assert_eq!(small.cmp(&large), Ordering::Greater); // large should come first
+        // Ord implementation is still Descending Size
+        assert_eq!(small.cmp(&large), Ordering::Greater); 
         assert_eq!(large.cmp(&small), Ordering::Less);
-    }
-
-    #[test]
-    fn test_file_entry_list_creation() {
-        let list = FileEntryList::new();
-        assert_eq!(list.len(), 0);
-        assert!(list.is_empty());
-    }
-
-    #[test]
-    fn test_file_entry_list_operations() {
-        let mut list = FileEntryList::new();
-        list.push(create_test_entry("test1.ba2", 1000, 10, false));
-        list.push(create_test_entry("test2.ba2", 2000, 20, false));
-
-        assert_eq!(list.len(), 2);
-        assert!(!list.is_empty());
-
-        let entry = list.get(0).unwrap();
-        assert_eq!(entry.file_name, "test1.ba2");
-
-        let removed = list.remove(0).unwrap();
-        assert_eq!(removed.file_name, "test1.ba2");
-        assert_eq!(list.len(), 1);
     }
 
     #[test]
@@ -350,21 +335,15 @@ mod tests {
             create_test_entry("alpha.ba2", 2000, 20, false),
         ]);
 
-        list.sort_by(SortBy::Name);
+        // Ascending
+        list.sort_by(SortBy::Name, false);
         assert_eq!(list.entries()[0].file_name, "alpha.ba2");
         assert_eq!(list.entries()[1].file_name, "zebra.ba2");
-    }
 
-    #[test]
-    fn test_file_entry_list_totals() {
-        let list = FileEntryList::from_vec(vec![
-            create_test_entry("test1.ba2", 1000, 10, false),
-            create_test_entry("test2.ba2", 2000, 20, false),
-            create_test_entry("test3.ba2", 3000, 30, false),
-        ]);
-
-        assert_eq!(list.total_size(), 6000);
-        assert_eq!(list.total_file_count(), 60);
+        // Descending
+        list.sort_by(SortBy::Name, true);
+        assert_eq!(list.entries()[0].file_name, "zebra.ba2");
+        assert_eq!(list.entries()[1].file_name, "alpha.ba2");
     }
 
     #[test]

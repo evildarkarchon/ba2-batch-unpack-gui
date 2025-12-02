@@ -58,6 +58,8 @@ pub fn run() -> Result<()> {
 struct AppState {
     config: AppConfig,
     file_entries: FileEntryList,
+    sort_column: i32,
+    sort_ascending: bool,
 }
 
 impl AppState {
@@ -66,6 +68,8 @@ impl AppState {
         Ok(Self {
             config,
             file_entries: FileEntryList::new(),
+            sort_column: -1,
+            sort_ascending: true,
         })
     }
 }
@@ -97,6 +101,8 @@ fn setup_callbacks(main_window: &MainWindow) {
             Arc::new(Mutex::new(AppState {
                 config: AppConfig::default(),
                 file_entries: FileEntryList::new(),
+                sort_column: -1,
+                sort_ascending: true,
             }))
         }
     };
@@ -106,6 +112,17 @@ fn setup_callbacks(main_window: &MainWindow) {
         control_tx: None,
     }));
 
+    // Initialize theme from config
+    {
+        let config_theme = state.lock().unwrap().config.appearance.theme_mode.clone();
+        let theme_mode = match config_theme.to_lowercase().as_str() {
+            "dark" => 1,
+            "light" => 0,
+            _ => 2, // System
+        };
+        main_window.set_theme_mode(theme_mode);
+    }
+
     setup_browse_folder_callback(main_window, Arc::clone(&state));
     setup_scan_callback(main_window, Arc::clone(&state));
     setup_extraction_callback(main_window, Arc::clone(&state), Arc::clone(&extraction_control));
@@ -114,6 +131,7 @@ fn setup_callbacks(main_window: &MainWindow) {
     setup_file_actions_callback(main_window, &state); // Phase 2.3
     setup_open_folder_callback(main_window, Arc::clone(&state)); // Phase 2.3
     setup_extraction_control_callbacks(main_window, &extraction_control); // Phase 2.3
+    setup_settings_callbacks(main_window, Arc::clone(&state)); // Phase 2.2
     setup_update_checker_callback(main_window);
     setup_platform_integration(main_window, &state); // Phase 2.9
     setup_log_viewer_callbacks(main_window); // Phase 3.3
@@ -683,10 +701,31 @@ fn setup_sort_callback(main_window: &MainWindow, state: Arc<Mutex<AppState>>) {
             _ => return,
         };
 
+        // Determine sort direction
+        let (new_ascending, reverse) = {
+            let mut app_state = state.lock().unwrap();
+
+            let ascending = if app_state.sort_column == column {
+                !app_state.sort_ascending
+            } else {
+                // Default sort order for new column:
+                // Size (1) and FileCount (2) default to Descending (Largest/Most first)
+                // Name (0) and ModName (3) default to Ascending (A-Z)
+                !matches!(column, 1 | 2)
+            };
+
+            app_state.sort_column = column;
+            app_state.sort_ascending = ascending;
+
+            // reverse=true means Descending (Z-A, 9-0)
+            // reverse=false means Ascending (A-Z, 0-9)
+            (ascending, !ascending)
+        };
+
         // Sort entries in state
         {
             let mut app_state = state.lock().unwrap();
-            app_state.file_entries.sort_by(sort_by);
+            app_state.file_entries.sort_by(sort_by, reverse);
         }
 
         // Update UI
@@ -694,6 +733,10 @@ fn setup_sort_callback(main_window: &MainWindow, state: Arc<Mutex<AppState>>) {
         let weak_clone = weak.clone();
         let _ = slint::invoke_from_event_loop(move || {
             if let Some(ui) = weak_clone.upgrade() {
+                // Update sort indicators
+                ui.set_sort_column(column);
+                ui.set_sort_ascending(new_ascending);
+
                 let row_data: Vec<FileRowData> = {
                     let app_state = state_clone.lock().unwrap();
                     app_state
@@ -1440,4 +1483,93 @@ mod tests {
         // We can't actually run the UI in tests, but we can verify it compiles
         assert!(true, "Slint module compiled successfully");
     }
+}
+/// Set up settings callbacks (Phase 2.2)
+fn setup_settings_callbacks(main_window: &MainWindow, state: Arc<Mutex<AppState>>) {
+    // Handle setting changes
+    let state_for_settings = Arc::clone(&state);
+    main_window.on_settings_changed(move |key, value| {
+        let key_str = key.to_string();
+        let value_str = value.to_string();
+        tracing::info!("Setting changed: {} = {}", key_str, value_str);
+
+        let state_clone = Arc::clone(&state_for_settings);
+        
+        // Update config in background to avoid blocking UI
+        std::thread::spawn(move || {
+            if let Ok(mut app_state) = state_clone.lock() {
+                let config = &mut app_state.config;
+                let mut save_needed = true;
+
+                match key_str.as_str() {
+                    "postfixes" => {
+                        // Split by comma and trim
+                        config.extraction.postfixes = value_str
+                            .split(',')
+                            .map(|s| s.trim().to_string())
+                            .filter(|s| !s.is_empty())
+                            .collect();
+                    }
+                    "ignored_files" => {
+                        config.extraction.ignored_files = value_str
+                            .split(',')
+                            .map(|s| s.trim().to_string())
+                            .filter(|s| !s.is_empty())
+                            .collect();
+                    }
+                    "theme_mode" => {
+                        config.appearance.theme_mode = value_str;
+                    }
+                    "language" => {
+                        config.appearance.language = value_str;
+                    }
+                    _ => {
+                        tracing::warn!("Unknown setting key: {}", key_str);
+                        save_needed = false;
+                    }
+                }
+
+                if save_needed {
+                    if let Err(e) = config.save() {
+                        tracing::error!("Failed to save configuration: {}", e);
+                    } else {
+                        tracing::debug!("Configuration saved");
+                    }
+                }
+            }
+        });
+    });
+
+    // Handle toggle changes
+    let state_for_toggles = Arc::clone(&state);
+    main_window.on_settings_toggle_changed(move |key, value| {
+        let key_str = key.to_string();
+        tracing::info!("Toggle setting changed: {} = {}", key_str, value);
+
+        let state = Arc::clone(&state_for_toggles);
+        
+        std::thread::spawn(move || {
+            if let Ok(mut app_state) = state.lock() {
+                let config = &mut app_state.config;
+                let mut save_needed = true;
+
+                match key_str.as_str() {
+                    "ignore_bad_files" => config.extraction.ignore_bad_files = value,
+                    "auto_backup" => config.extraction.auto_backup = value,
+                    "check_updates" => config.update.check_at_startup = value,
+                    "show_debug" => config.advanced.show_debug = value,
+                    _ => {
+                        tracing::warn!("Unknown toggle setting key: {}", key_str);
+                        save_needed = false;
+                    }
+                }
+
+                if save_needed {
+                    if let Err(e) = config.save() {
+                        tracing::error!("Failed to save configuration: {}", e);
+                    }
+                }
+            }
+        });
+    });
 }

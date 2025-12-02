@@ -6,7 +6,7 @@ import { VerticalBox, HorizontalBox, Button, ListView, ScrollView, Palette } fro
 // Fluent Design Color Palette (Phase 2.4 - Enhanced Theme System)
 global Colors {
     // Theme mode: 0 = Light, 1 = Dark, 2 = System (for now, same as Light)
-    in-out property <int> theme-mode: 0;
+    in-out property <int> theme-mode: 1;
 
     // Custom accent color (RGB format)
     in-out property <color> custom-accent: #0078d4; // Default Fluent blue
@@ -69,7 +69,7 @@ global Typography {
     // Scaling factor based on window width (800px min, 1600px max for scaling)
     // At 800px: scale = 0.9, At 1000px: scale = 1.0, At 1600px: scale = 1.15
     in property <length> window-width: 1000px;
-    property <float> scale-factor: max(0.9, min(1.15, 0.9 + (window-width - 800px) / 2000px));
+    property <float> scale-factor: 1.0;
 
     // Scaled font sizes
     out property <length> title-size: base-title * scale-factor;
@@ -81,7 +81,7 @@ global Typography {
 // Navigation item component (Phase 3.1: Enhanced with smooth animations)
 component NavigationItem inherits Rectangle {
     in property <string> text;
-    in property <string> icon;
+    in property <image> icon;
     in property <bool> selected: false;
 
     callback clicked <=> touch.clicked;
@@ -111,11 +111,12 @@ component NavigationItem inherits Rectangle {
         padding-right: 16px;
         spacing: 12px;
 
-        // Icon (using text for now, will use actual icons later)
-        Text {
-            text: icon;
-            font-size: 20px;
-            color: selected ? Colors.accent : Colors.text-secondary;
+        // Icon
+        Image {
+            source: root.icon;
+            width: 20px;
+            height: 20px;
+            colorize: selected ? Colors.accent : Colors.text-secondary;
             vertical-alignment: center;
         }
 
@@ -181,7 +182,7 @@ component NavigationSidebar inherits Rectangle {
         // Navigation items
         NavigationItem {
             text: "Extraction";
-            icon: "🏠";
+            icon: @image-url("icons/folder.svg");
             selected: selected-index == 0;
             clicked => {
                 selected-index = 0;
@@ -191,7 +192,7 @@ component NavigationSidebar inherits Rectangle {
 
         NavigationItem {
             text: "Check Files";
-            icon: "🔍";
+            icon: @image-url("icons/search.svg");
             selected: selected-index == 1;
             clicked => {
                 selected-index = 1;
@@ -206,7 +207,7 @@ component NavigationSidebar inherits Rectangle {
 
         NavigationItem {
             text: "Settings";
-            icon: "⚙";
+            icon: @image-url("icons/settings.svg");
             selected: selected-index == 2;
             clicked => {
                 selected-index = 2;
@@ -387,6 +388,8 @@ component ContextMenu inherits Rectangle {
 component TableHeaderCell inherits Rectangle {
     in property <string> text;
     in property <int> column-index;
+    in property <int> sort-column: -1;
+    in property <bool> sort-ascending: true;
 
     callback clicked(int);
 
@@ -408,6 +411,7 @@ component TableHeaderCell inherits Rectangle {
     HorizontalBox {
         padding-left: 12px;
         padding-right: 12px;
+        spacing: 4px;
 
         Text {
             text: root.text;
@@ -418,11 +422,11 @@ component TableHeaderCell inherits Rectangle {
             horizontal-alignment: left;
         }
 
-        // Sort indicator placeholder (can be enhanced later)
-        Text {
-            text: "⇅";
+        // Sort indicator
+        if sort-column == column-index: Text {
+            text: sort-ascending ? "▲" : "▼";
             font-size: 10px;
-            color: Colors.text-secondary;
+            color: Colors.accent;
             vertical-alignment: center;
         }
     }
@@ -590,6 +594,10 @@ component ExtractionScreen inherits Rectangle {
     in-out property <bool> extracting: false;
     in-out property <int> selected-row: -1;
 
+    // Sorting state
+    in-out property <int> sort-column: -1;
+    in-out property <bool> sort-ascending: true;
+
     // Phase 2.3: Threshold filtering
     in-out property <string> threshold-value: "";
     in-out property <bool> auto-threshold: false;
@@ -647,7 +655,7 @@ component ExtractionScreen inherits Rectangle {
 
         // Folder selection area
         Rectangle {
-            height: 80px;
+            height: 105px;
             background: Colors.surface;
             border-radius: 8px;
 
@@ -705,7 +713,7 @@ component ExtractionScreen inherits Rectangle {
 
         // Phase 2.3: Threshold filtering section
         Rectangle {
-            height: 80px;
+            height: 105px;
             background: Colors.surface;
             border-radius: 8px;
 
@@ -835,6 +843,8 @@ component ExtractionScreen inherits Rectangle {
                             width: 35%;
                             text: "File Name";
                             column-index: 0;
+                            sort-column: root.sort-column;
+                            sort-ascending: root.sort-ascending;
                             clicked(idx) => { sort-by-column(idx); }
                         }
 
@@ -842,6 +852,8 @@ component ExtractionScreen inherits Rectangle {
                             width: 20%;
                             text: "File Size";
                             column-index: 1;
+                            sort-column: root.sort-column;
+                            sort-ascending: root.sort-ascending;
                             clicked(idx) => { sort-by-column(idx); }
                         }
 
@@ -849,6 +861,8 @@ component ExtractionScreen inherits Rectangle {
                             width: 15%;
                             text: "# Files";
                             column-index: 2;
+                            sort-column: root.sort-column;
+                            sort-ascending: root.sort-ascending;
                             clicked(idx) => { sort-by-column(idx); }
                         }
 
@@ -856,6 +870,8 @@ component ExtractionScreen inherits Rectangle {
                             width: 30%;
                             text: "Mod Folder";
                             column-index: 3;
+                            sort-column: root.sort-column;
+                            sort-ascending: root.sort-ascending;
                             clicked(idx) => { sort-by-column(idx); }
                         }
                     }
@@ -1134,7 +1150,7 @@ component CheckFilesScreen inherits Rectangle {
 
         // Folder selection area
         Rectangle {
-            height: 100px;
+            height: 165px;
             background: Colors.surface;
             border-radius: 8px;
 
@@ -1234,7 +1250,7 @@ component CheckFilesScreen inherits Rectangle {
 
         // Status and action area
         Rectangle {
-            height: 100px;
+            height: 130px;
             background: Colors.surface;
             border-radius: 8px;
 
@@ -1430,8 +1446,10 @@ component SettingsComboBox inherits Rectangle {
 
             touch := TouchArea {
                 mouse-cursor: pointer;
-                // Note: Actual dropdown implementation would need popup logic
-                // For MVP, this is styled but functionality deferred
+                clicked => {
+                    root.current-index = (root.current-index + 1) >= root.model.length ? 0 : root.current-index + 1;
+                    root.selected(root.current-index);
+                }
             }
         }
     }
@@ -1545,6 +1563,9 @@ component SettingsScreen inherits Rectangle {
                         label: "Theme Mode";
                         model: ["Light", "Dark", "System"];
                         current-index <=> theme-mode;
+                        selected(idx) => {
+                            root.setting-changed("theme_mode", idx == 0 ? "light" : idx == 1 ? "dark" : "system");
+                        }
                     }
 
                     SettingsComboBox {
@@ -2530,6 +2551,8 @@ export component MainWindow inherits Window {
     in-out property <bool> scanning: false;
     in-out property <bool> extracting: false;
     in-out property <int> selected-row: -1;
+    in-out property <int> sort-column: -1;
+    in-out property <bool> sort-ascending: true;
 
     // Phase 2.3: Threshold filtering state
     in-out property <string> threshold-value: "";
@@ -2666,6 +2689,8 @@ export component MainWindow inherits Window {
                 scanning <=> root.scanning;
                 extracting <=> root.extracting;
                 selected-row <=> root.selected-row;
+                sort-column <=> root.sort-column;
+                sort-ascending <=> root.sort-ascending;
                 threshold-value <=> root.threshold-value; // Phase 2.3
                 auto-threshold <=> root.auto-threshold; // Phase 2.3
                 extraction-complete <=> root.extraction-complete; // Phase 2.3

@@ -166,7 +166,7 @@ impl Default for ExtractionConfig {
 impl Default for AppearanceConfig {
     fn default() -> Self {
         Self {
-            theme_mode: "system".to_string(),
+            theme_mode: "dark".to_string(),
             accent_color: "#0078D4".to_string(), // Fluent Design default blue
             language: "auto".to_string(),
         }
