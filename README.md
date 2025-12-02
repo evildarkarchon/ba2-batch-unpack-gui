@@ -184,7 +184,7 @@ A BA2 file is extracted if it meets **all** of these criteria:
 **Regex Support**:
 Wrap patterns in curly braces for regex matching:
 - `{.*[dD]iamond.*}` - Matches files containing "diamond" or "Diamond"
-- `{^Texture.*Main\.ba2$}` - Matches files starting with "Texture" and ending with "Main.ba2"
+- `{^Mod.*Main\.ba2$}` - Matches files starting with "Mod" and ending with "Main.ba2"
 
 **Note**: Regex patterns use `fullmatch()`, meaning they're anchored at start and end (`^pattern$`).
 
