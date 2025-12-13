@@ -58,6 +58,9 @@ tracing-appender = "0.2"
 # Parallel processing
 rayon = "1.10"
 
+# Better mutex implementation (no poisoning, better performance)
+parking_lot = "0.12"
+
 # Memory mapping for large files
 memmap2 = "0.9"
 

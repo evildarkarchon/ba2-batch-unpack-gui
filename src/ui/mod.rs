@@ -13,10 +13,11 @@ use crate::models::{FileEntry, FileEntryList, SortBy};
 use crate::operations::{extract_all, scan_for_ba2, ExtractionProgress, ScanProgress};
 use anyhow::Result;
 use humansize::{format_size, BINARY};
+use parking_lot::Mutex;
 use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
 use std::path::PathBuf;
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use tokio::sync::mpsc;
 
 // Include the generated Slint code
@@ -114,7 +115,7 @@ fn setup_callbacks(main_window: &MainWindow) {
 
     // Initialize theme from config
     {
-        let config_theme = state.lock().unwrap().config.appearance.theme_mode.clone();
+        let config_theme = state.lock().config.appearance.theme_mode.clone();
         let theme_mode = match config_theme.to_lowercase().as_str() {
             "dark" => 1,
             "light" => 0,
@@ -160,7 +161,8 @@ fn setup_browse_folder_callback(main_window: &MainWindow, state: Arc<Mutex<AppSt
                         ui.set_selected_folder(SharedString::from(folder_str.clone()));
 
                         // Save last used directory
-                        if let Ok(mut app_state) = state.lock() {
+                        {
+                            let mut app_state = state.lock();
                             app_state.config.saved.directory.clone_from(&folder_str);
                             if let Err(e) = app_state.config.save() {
                                 tracing::error!("Failed to save configuration: {}", e);
@@ -214,7 +216,7 @@ fn setup_scan_callback(main_window: &MainWindow, state: Arc<Mutex<AppState>>) {
 
             // Get config
             let config = {
-                let app_state = state_clone.lock().unwrap();
+                let app_state = state_clone.lock();
                 app_state.config.clone()
             };
 
@@ -288,7 +290,7 @@ fn setup_scan_callback(main_window: &MainWindow, state: Arc<Mutex<AppState>>) {
 
                         // Update state
                         {
-                            let mut app_state = state_clone.lock().unwrap();
+                            let mut app_state = state_clone.lock();
                             app_state.file_entries = FileEntryList::from_vec(entries);
                         }
 
@@ -365,13 +367,13 @@ fn setup_extraction_callback(
 
                 // Phase 2.3: Store control sender in shared state
                 {
-                    let mut ctrl_state = extraction_control_clone.lock().unwrap();
+                    let mut ctrl_state = extraction_control_clone.lock();
                     ctrl_state.control_tx = Some(control_tx);
                 }
 
                 // Get files and config from state
                 let (files, config) = {
-                    let app_state = state_clone.lock().unwrap();
+                    let app_state = state_clone.lock();
                     (
                         app_state.file_entries.entries().to_vec(),
                         app_state.config.clone(),
@@ -645,7 +647,7 @@ fn setup_extraction_callback(
 
                         // Phase 2.3: Get extraction path for "Open Folder" button
                         let extraction_path = {
-                            let app_state = state_clone.lock().unwrap();
+                            let app_state = state_clone.lock();
                             app_state.config.advanced.extraction_path.clone()
                         };
 
@@ -703,7 +705,7 @@ fn setup_sort_callback(main_window: &MainWindow, state: Arc<Mutex<AppState>>) {
 
         // Determine sort direction
         let (new_ascending, reverse) = {
-            let mut app_state = state.lock().unwrap();
+            let mut app_state = state.lock();
 
             let ascending = if app_state.sort_column == column {
                 !app_state.sort_ascending
@@ -724,7 +726,7 @@ fn setup_sort_callback(main_window: &MainWindow, state: Arc<Mutex<AppState>>) {
 
         // Sort entries in state
         {
-            let mut app_state = state.lock().unwrap();
+            let mut app_state = state.lock();
             app_state.file_entries.sort_by(sort_by, reverse);
         }
 
@@ -738,7 +740,7 @@ fn setup_sort_callback(main_window: &MainWindow, state: Arc<Mutex<AppState>>) {
                 ui.set_sort_ascending(new_ascending);
 
                 let row_data: Vec<FileRowData> = {
-                    let app_state = state_clone.lock().unwrap();
+                    let app_state = state_clone.lock();
                     app_state
                         .file_entries
                         .entries()
@@ -769,7 +771,7 @@ fn setup_extraction_control_callbacks(
         let extraction_control_clone = Arc::clone(extraction_control);
         main_window.on_pause_extraction(move || {
             tracing::info!("Pause extraction requested");
-            let ctrl_state = extraction_control_clone.lock().unwrap();
+            let ctrl_state = extraction_control_clone.lock();
             if let Some(tx) = &ctrl_state.control_tx {
                 if let Err(e) = tx.send(ExtractionControl::Pause) {
                     tracing::error!("Failed to send pause signal: {}", e);
@@ -785,7 +787,7 @@ fn setup_extraction_control_callbacks(
         let extraction_control_clone = Arc::clone(extraction_control);
         main_window.on_resume_extraction(move || {
             tracing::info!("Resume extraction requested");
-            let ctrl_state = extraction_control_clone.lock().unwrap();
+            let ctrl_state = extraction_control_clone.lock();
             if let Some(tx) = &ctrl_state.control_tx {
                 if let Err(e) = tx.send(ExtractionControl::Resume) {
                     tracing::error!("Failed to send resume signal: {}", e);
@@ -801,7 +803,7 @@ fn setup_extraction_control_callbacks(
         let extraction_control_clone = Arc::clone(extraction_control);
         main_window.on_cancel_extraction(move || {
             tracing::info!("Cancel extraction requested");
-            let ctrl_state = extraction_control_clone.lock().unwrap();
+            let ctrl_state = extraction_control_clone.lock();
             if let Some(tx) = &ctrl_state.control_tx {
                 if let Err(e) = tx.send(ExtractionControl::Cancel) {
                     tracing::error!("Failed to send cancel signal: {}", e);
@@ -971,7 +973,7 @@ fn setup_threshold_callbacks(main_window: &MainWindow, state: &Arc<Mutex<AppStat
             if enabled {
                 // Calculate auto-threshold (235 file limit)
                 let (entries_count, threshold_opt) = {
-                    let app_state = state_clone.lock().unwrap();
+                    let app_state = state_clone.lock();
                     let entries = app_state.file_entries.entries();
                     let count = entries.len();
 
@@ -1081,7 +1083,7 @@ fn setup_file_actions_callback(main_window: &MainWindow, state: &Arc<Mutex<AppSt
 
                 // Add to ignored files in config
                 {
-                    let mut app_state = state.lock().unwrap();
+                    let mut app_state = state.lock();
                     // TODO: Add the file to the ignored list in config
                     // For now, just remove it from the current list
                     let entries = app_state.file_entries.entries().to_vec();
@@ -1110,7 +1112,7 @@ fn setup_file_actions_callback(main_window: &MainWindow, state: &Arc<Mutex<AppSt
             "open" => {
                 // Get the file info from state
                 let (file_name, file_path, ext_tool_path) = {
-                    let app_state = state.lock().unwrap();
+                    let app_state = state.lock();
                     let entries = app_state.file_entries.entries();
 
                     let idx = match usize::try_from(row_index) {
@@ -1213,7 +1215,7 @@ fn setup_open_folder_callback(main_window: &MainWindow, state: Arc<Mutex<AppStat
 
         if extraction_path.is_empty() {
             // Fallback to config extraction path or current directory
-            let app_state = state.lock().unwrap();
+            let app_state = state.lock();
             let default_path = if app_state.config.advanced.extraction_path.is_empty() {
                 std::env::current_dir()
                     .ok()
@@ -1263,7 +1265,7 @@ fn setup_open_folder_callback(main_window: &MainWindow, state: Arc<Mutex<AppStat
 /// Refresh the file table with optional threshold filtering (Phase 2.3)
 fn refresh_file_table(ui: &MainWindow, state: &Arc<Mutex<AppState>>, threshold: Option<u64>) {
     let entries = {
-        let app_state = state.lock().unwrap();
+        let app_state = state.lock();
         app_state.file_entries.entries().to_vec()
     };
 
@@ -1497,44 +1499,43 @@ fn setup_settings_callbacks(main_window: &MainWindow, state: Arc<Mutex<AppState>
         
         // Update config in background to avoid blocking UI
         std::thread::spawn(move || {
-            if let Ok(mut app_state) = state_clone.lock() {
-                let config = &mut app_state.config;
-                let mut save_needed = true;
+            let mut app_state = state_clone.lock();
+            let config = &mut app_state.config;
+            let mut save_needed = true;
 
-                match key_str.as_str() {
-                    "postfixes" => {
-                        // Split by comma and trim
-                        config.extraction.postfixes = value_str
-                            .split(',')
-                            .map(|s| s.trim().to_string())
-                            .filter(|s| !s.is_empty())
-                            .collect();
-                    }
-                    "ignored_files" => {
-                        config.extraction.ignored_files = value_str
-                            .split(',')
-                            .map(|s| s.trim().to_string())
-                            .filter(|s| !s.is_empty())
-                            .collect();
-                    }
-                    "theme_mode" => {
-                        config.appearance.theme_mode = value_str;
-                    }
-                    "language" => {
-                        config.appearance.language = value_str;
-                    }
-                    _ => {
-                        tracing::warn!("Unknown setting key: {}", key_str);
-                        save_needed = false;
-                    }
+            match key_str.as_str() {
+                "postfixes" => {
+                    // Split by comma and trim
+                    config.extraction.postfixes = value_str
+                        .split(',')
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect();
                 }
+                "ignored_files" => {
+                    config.extraction.ignored_files = value_str
+                        .split(',')
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect();
+                }
+                "theme_mode" => {
+                    config.appearance.theme_mode = value_str;
+                }
+                "language" => {
+                    config.appearance.language = value_str;
+                }
+                _ => {
+                    tracing::warn!("Unknown setting key: {}", key_str);
+                    save_needed = false;
+                }
+            }
 
-                if save_needed {
-                    if let Err(e) = config.save() {
-                        tracing::error!("Failed to save configuration: {}", e);
-                    } else {
-                        tracing::debug!("Configuration saved");
-                    }
+            if save_needed {
+                if let Err(e) = config.save() {
+                    tracing::error!("Failed to save configuration: {}", e);
+                } else {
+                    tracing::debug!("Configuration saved");
                 }
             }
         });
@@ -1549,25 +1550,24 @@ fn setup_settings_callbacks(main_window: &MainWindow, state: Arc<Mutex<AppState>
         let state = Arc::clone(&state_for_toggles);
         
         std::thread::spawn(move || {
-            if let Ok(mut app_state) = state.lock() {
-                let config = &mut app_state.config;
-                let mut save_needed = true;
+            let mut app_state = state.lock();
+            let config = &mut app_state.config;
+            let mut save_needed = true;
 
-                match key_str.as_str() {
-                    "ignore_bad_files" => config.extraction.ignore_bad_files = value,
-                    "auto_backup" => config.extraction.auto_backup = value,
-                    "check_updates" => config.update.check_at_startup = value,
-                    "show_debug" => config.advanced.show_debug = value,
-                    _ => {
-                        tracing::warn!("Unknown toggle setting key: {}", key_str);
-                        save_needed = false;
-                    }
+            match key_str.as_str() {
+                "ignore_bad_files" => config.extraction.ignore_bad_files = value,
+                "auto_backup" => config.extraction.auto_backup = value,
+                "check_updates" => config.update.check_at_startup = value,
+                "show_debug" => config.advanced.show_debug = value,
+                _ => {
+                    tracing::warn!("Unknown toggle setting key: {}", key_str);
+                    save_needed = false;
                 }
+            }
 
-                if save_needed {
-                    if let Err(e) = config.save() {
-                        tracing::error!("Failed to save configuration: {}", e);
-                    }
+            if save_needed {
+                if let Err(e) = config.save() {
+                    tracing::error!("Failed to save configuration: {}", e);
                 }
             }
         });

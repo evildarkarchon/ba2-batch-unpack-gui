@@ -437,7 +437,7 @@ mod tests {
     #[test]
     fn test_default_config() {
         let config = AppConfig::default();
-        assert_eq!(config.appearance.theme_mode, "system");
+        assert_eq!(config.appearance.theme_mode, "dark");
         assert!(config.update.check_at_startup);
         assert_eq!(config.advanced.log_level, LogLevel::Warning);
         assert!(config.advanced.first_launch);

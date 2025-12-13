@@ -123,9 +123,6 @@ impl Default for ExtractionResult {
 ///
 /// `Ok(())` if extraction succeeds, `Err` otherwise
 ///
-/// # Panics
-///
-/// Panics if `ba2_path` does not have a parent directory (i.e., it is the root path), which should not happen for valid file paths.
 pub async fn extract_ba2_file(
     ba2_path: &Path,
     output_dir: Option<&Path>,
@@ -149,11 +146,13 @@ pub async fn extract_ba2_file(
     }
 
     // Determine output directory
-    let output_path = output_dir.unwrap_or_else(|| {
-        ba2_path
-            .parent()
-            .expect("BA2 file should have a parent directory")
-    });
+    let Some(output_path) = output_dir.or_else(|| ba2_path.parent()) else {
+        return Err(BA2Error::ExtractionFailed {
+            path: ba2_path.to_path_buf(),
+            reason: "BA2 file path has no parent directory".to_string(),
+        }
+        .into());
+    };
 
     // Build BSArch command
     // Format: BSArch.exe unpack <ba2_file> <output_dir>
@@ -199,9 +198,6 @@ pub async fn extract_ba2_file(
 ///
 /// `ExtractionResult` with details about successful and failed extractions
 ///
-/// # Panics
-///
-/// Panics if the concurrency semaphore is closed, which is unexpected during normal operation.
 pub async fn extract_all(
     files: Vec<FileEntry>,
     config: AppConfig,
@@ -249,8 +245,15 @@ pub async fn extract_all(
             
             async move {
                 // Acquire permit to limit concurrency
-                let _permit = semaphore.acquire().await.unwrap();
-                
+                let Ok(_permit) = semaphore.acquire().await else {
+                    // Semaphore was closed unexpectedly - treat as extraction failure
+                    return FileExtractionResult {
+                        file_path: file_path.clone(),
+                        success: false,
+                        error: Some("Extraction semaphore was closed unexpectedly".to_string()),
+                    };
+                };
+
                 let current = current_counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
 
                 // Send started progress

@@ -7,7 +7,8 @@ fn main() -> anyhow::Result<()> {
 
     // Initialize logging system
     // This sets up both console and file logging with rotation
-    logging::init(config.as_ref())?;
+    // Hold the guard for the application lifetime to ensure logs are flushed on shutdown
+    let _log_guard = logging::init(config.as_ref())?;
 
     // Phase 3.3: Set up panic handler to log panics
     panic::set_hook(Box::new(|panic_info| {

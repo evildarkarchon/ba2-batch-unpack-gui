@@ -123,14 +123,18 @@ pub async fn scan_for_ba2(
     }
 
     // Use rayon for parallel scanning of mod folders
+    // Wrap in spawn_blocking to avoid blocking the async executor
     // Note: Progress updates during parallel scanning are omitted to avoid
     // tokio/rayon runtime conflicts. Only start and complete messages are sent.
-    let all_ba2: Vec<BA2FileInfo> = mod_folders
-        .into_par_iter()
-        .flat_map(|mod_folder| {
-            scan_mod_folder(&mod_folder, config, None)
-        })
-        .collect();
+    let config_clone = config.clone();
+    let all_ba2: Vec<BA2FileInfo> = tokio::task::spawn_blocking(move || {
+        mod_folders
+            .into_par_iter()
+            .flat_map(|mod_folder| scan_mod_folder(&mod_folder, &config_clone))
+            .collect()
+    })
+    .await
+    .map_err(|e| std::io::Error::other(format!("Scan task failed: {e}")))?;
 
     // Send completion progress
     if let Some(ref tx) = progress_tx {
@@ -144,11 +148,7 @@ pub async fn scan_for_ba2(
 }
 
 /// Scan a single mod folder for BA2 files
-fn scan_mod_folder(
-    mod_folder: &Path,
-    config: &AppConfig,
-    _progress_tx: Option<mpsc::Sender<ScanProgress>>,
-) -> Vec<BA2FileInfo> {
+fn scan_mod_folder(mod_folder: &Path, config: &AppConfig) -> Vec<BA2FileInfo> {
     let mut ba2_files = Vec::new();
 
     let dir_name = mod_folder
@@ -376,7 +376,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let config = AppConfig::default();
 
-        let result = scan_mod_folder(temp_dir.path(), &config, None);
+        let result = scan_mod_folder(temp_dir.path(), &config);
         assert_eq!(result.len(), 0);
     }
 }

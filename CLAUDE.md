@@ -176,62 +176,71 @@ ui.on_start_extraction(|path| {
 - ❌ Use `#[tokio::main]` - this creates a current-thread runtime that conflicts with Slint
 - ❌ Use Tokio's current-thread runtime on the main thread - Slint can't yield to it
 - ❌ Block the Slint UI thread with `.await` or blocking operations
-- ❌ Try to run `tokio::spawn` directly from UI callbacks without proper wrapping
+- ❌ Call `tokio::spawn` from UI callbacks without a global runtime
 
 **DO:**
-- ✅ Use `async-compat` crate to bridge Tokio futures into Slint's executor
-- ✅ Use `slint::spawn_local()` for all main thread async tasks
-- ✅ Use `slint::invoke_from_event_loop()` to communicate from background threads to UI
-- ✅ Run heavy async work on a separate multi-threaded Tokio runtime
-- ✅ Use `Arc<Mutex<T>>` or `Arc<RwLock<T>>` for shared state between UI and async tasks
+- ✅ Use a global multi-threaded Tokio runtime via `OnceLock<Runtime>`
+- ✅ Spawn async work using `get_runtime().spawn()` from UI callbacks
+- ✅ Use `slint::invoke_from_event_loop()` to update UI from async tasks
+- ✅ Use `parking_lot::Mutex` for shared state (no poisoning, better ergonomics)
+- ✅ Use `tokio::task::spawn_blocking()` for CPU-bound work like rayon operations
 
-**Recommended Pattern:**
+**Current Implementation Pattern (lib.rs):**
 
 ```rust
-use slint::spawn_local;
-use async_compat::Compat;
-use tokio::sync::mpsc;
+use std::sync::OnceLock;
+use tokio::runtime::Runtime;
+
+// Global multi-threaded Tokio runtime
+static RUNTIME: OnceLock<Runtime> = OnceLock::new();
+
+/// Get a reference to the global Tokio runtime
+pub fn get_runtime() -> &'static Runtime {
+    RUNTIME.get_or_init(|| {
+        tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .expect("Failed to create Tokio runtime")
+    })
+}
+```
+
+**UI Callback Pattern (ui/mod.rs):**
+
+```rust
+use parking_lot::Mutex;
 use std::sync::Arc;
 
-// Initialize channels and state BEFORE setting up callbacks
-let (tx, mut rx) = mpsc::channel(100);
-let shared_state = Arc::new(Mutex::new(AppState::default()));
+// Shared state using parking_lot::Mutex (no poisoning)
+let state = Arc::new(Mutex::new(AppState::new()));
 
-// For main thread async work (UI updates, light tasks)
-ui.on_some_action(move || {
-    let tx = tx.clone();
-    spawn_local(Compat::new(async move {
-        // Tokio future running in Slint's event loop
-        let result = some_async_operation().await;
-        tx.send(result).await.unwrap();
-    })).unwrap();
-});
+// UI callback spawns async work on global runtime
+main_window.on_start_scan(move || {
+    let weak_clone = weak.clone();
+    let state_clone = Arc::clone(&state);
 
-// For heavy background work (file extraction, etc.)
-std::thread::spawn(move || {
-    let rt = tokio::runtime::Runtime::new().unwrap();
-    rt.block_on(async {
-        while let Some(msg) = rx.recv().await {
-            // Heavy processing here
-            let result = process_ba2_file(msg).await;
+    // Spawn on global runtime - runs in background
+    crate::get_runtime().spawn(async move {
+        // Async work here (file I/O, network, etc.)
+        let result = scan_for_ba2(&path, &config, Some(tx)).await;
 
-            // Update UI from background thread
-            let ui_weak = ui_weak.clone();
-            slint::invoke_from_event_loop(move || {
-                let ui = ui_weak.upgrade().unwrap();
-                ui.set_progress(result.progress);
-            }).unwrap();
-        }
+        // Update UI from async task via invoke_from_event_loop
+        let _ = slint::invoke_from_event_loop(move || {
+            if let Some(ui) = weak_clone.upgrade() {
+                ui.set_status_text(SharedString::from("Scan complete"));
+                ui.set_file_list(ModelRc::new(VecModel::from(row_data)));
+            }
+        });
     });
 });
 ```
 
 **Key Points:**
-- **async-compat::Compat::new()** wraps Tokio futures for Slint compatibility
-- **spawn_local()** executes futures on Slint's main thread executor
-- **invoke_from_event_loop()** safely calls UI updates from background threads
-- **Initialize before callbacks** - avoid moving values into closures that need multiple access
-- **Separate runtimes** - use a dedicated Tokio runtime on background threads for heavy work
+- **Global runtime** - single multi-threaded Tokio runtime shared across all async operations
+- **get_runtime().spawn()** - spawns futures on worker threads, not the UI thread
+- **invoke_from_event_loop()** - safely updates UI from any thread
+- **parking_lot::Mutex** - preferred over `std::sync::Mutex` (no poisoning, use `.lock()` directly)
+- **spawn_blocking()** - wrap rayon/CPU-bound work to avoid blocking async executor
 
 ### File Paths
 

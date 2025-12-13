@@ -14,7 +14,13 @@ pub mod retry;
 pub mod scan;
 
 use crate::error::{Result, ValidationError};
+use regex::Regex;
 use std::path::PathBuf;
+use std::sync::LazyLock;
+
+/// Cached regex for parsing size units (compiled once)
+static SIZE_UNIT_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"([KMGT]?B)").expect("Size regex pattern is valid"));
 
 // Re-export scan module types and functions
 pub use scan::{scan_for_ba2, ScanProgress};
@@ -74,9 +80,6 @@ pub struct BA2FileInfo {
 /// assert_eq!(parse_size("10GB").unwrap(), 10_000_000_000);
 /// ```
 ///
-/// # Panics
-///
-/// This function should not panic as the regex pattern is valid.
 #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_precision_loss)]
 pub fn parse_size(size_str: &str) -> Result<u64> {
     let mut size_str = size_str.trim().to_uppercase();
@@ -86,11 +89,10 @@ pub fn parse_size(size_str: &str) -> Result<u64> {
         size_str.push('B');
     }
 
-    // Use regex to separate number from unit (mimicking Python's re.sub)
+    // Use cached regex to separate number from unit (mimicking Python's re.sub)
     // Pattern: r"([KMGT]?B)" -> r" \1"
     // This inserts a space before the unit if not already there
-    let re = regex::Regex::new(r"([KMGT]?B)").unwrap();
-    let size_str = re.replace(&size_str, " $1");
+    let size_str = SIZE_UNIT_REGEX.replace(&size_str, " $1");
 
     // Split into parts and parse
     let parts: Vec<&str> = size_str.split_whitespace().collect();

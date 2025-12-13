@@ -13,6 +13,7 @@ use anyhow::{Context, Result};
 use directories::ProjectDirs;
 use std::path::PathBuf;
 use tracing::Level;
+use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::{
     fmt::{self, format::FmtSpan},
     layer::SubscriberExt,
@@ -32,7 +33,9 @@ use tracing_subscriber::{
 ///
 /// # Returns
 ///
-/// `Ok(())` on success, error if logging initialization fails
+/// Returns `Ok(Some(WorkerGuard))` if file logging is enabled, `Ok(None)` if only
+/// console logging is active. The guard must be held for the application's lifetime
+/// to ensure log buffers are flushed on shutdown.
 ///
 /// # Examples
 ///
@@ -42,11 +45,12 @@ use tracing_subscriber::{
 ///
 /// fn main() -> anyhow::Result<()> {
 ///     let config = AppConfig::load().ok();
-///     logging::init(config.as_ref())?;
+///     // Hold the guard for the application lifetime to ensure logs are flushed
+///     let _log_guard = logging::init(config.as_ref())?;
 ///     Ok(())
 /// }
 /// ```
-pub fn init(config: Option<&AppConfig>) -> Result<()> {
+pub fn init(config: Option<&AppConfig>) -> Result<Option<WorkerGuard>> {
     // Determine log level from config or default to INFO
     let log_level = config
         .map_or(Level::INFO, |c| config_log_level_to_tracing(c.advanced.log_level));
@@ -88,7 +92,9 @@ pub fn init(config: Option<&AppConfig>) -> Result<()> {
         .with_filter(env_filter.clone());
 
     // File layer with rotation
-    let file_layer = create_file_appender()?.map(|file_appender| fmt::layer()
+    let (file_layer, guard) = match create_file_appender()? {
+        Some((file_appender, guard)) => {
+            let layer = fmt::layer()
                 .with_target(true)
                 .with_thread_ids(true)
                 .with_thread_names(true)
@@ -96,7 +102,11 @@ pub fn init(config: Option<&AppConfig>) -> Result<()> {
                 .with_line_number(true)
                 .with_ansi(false) // No color codes in file
                 .with_writer(file_appender)
-                .with_filter(env_filter));
+                .with_filter(env_filter);
+            (Some(layer), Some(guard))
+        }
+        None => (None, None),
+    };
 
     // Build and initialize the subscriber
     let registry = tracing_subscriber::registry().with(console_layer);
@@ -107,14 +117,18 @@ pub fn init(config: Option<&AppConfig>) -> Result<()> {
         registry.try_init()?;
     }
 
-    Ok(())
+    Ok(guard)
 }
 
 /// Create a file appender for log rotation
 ///
 /// Logs are written to the application's data directory under a "logs" subdirectory.
 /// Files are rotated daily with the naming pattern: `unpackrr-YYYY-MM-DD.log`
-fn create_file_appender() -> Result<Option<tracing_appender::non_blocking::NonBlocking>> {
+///
+/// Returns both the non-blocking writer and its guard. The guard must be held
+/// for the application lifetime to ensure buffered logs are flushed on shutdown.
+fn create_file_appender(
+) -> Result<Option<(tracing_appender::non_blocking::NonBlocking, WorkerGuard)>> {
     // Get application data directory
     let project_dirs = ProjectDirs::from("com", "evildarkarchon", "unpackrr")
         .context("Failed to determine application data directory")?;
@@ -129,12 +143,7 @@ fn create_file_appender() -> Result<Option<tracing_appender::non_blocking::NonBl
     let file_appender = tracing_appender::rolling::daily(&log_dir, "unpackrr.log");
     let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
 
-    // Note: We're intentionally leaking guard here because we want logging
-    // to persist for the entire application lifetime. In a production app,
-    // you'd want to store the guard somewhere (e.g., in main())
-    std::mem::forget(guard);
-
-    Ok(Some(non_blocking))
+    Ok(Some((non_blocking, guard)))
 }
 
 /// Get the log directory path
