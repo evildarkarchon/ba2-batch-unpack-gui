@@ -80,9 +80,7 @@ pub async fn check_for_updates() -> Result<Option<UpdateInfo>> {
     tracing::info!("Checking for updates from GitHub...");
 
     // Build GitHub API URL
-    let url = format!(
-        "https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/releases/latest"
-    );
+    let url = format!("https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/releases/latest");
 
     // Fetch latest release from GitHub
     let client = reqwest::Client::builder()
@@ -118,11 +116,7 @@ pub async fn check_for_updates() -> Result<Option<UpdateInfo>> {
     let current = parse_version(CURRENT_VERSION)?;
     let latest = parse_version(&release.tag_name)?;
 
-    tracing::debug!(
-        "Current version: {}, Latest version: {}",
-        current,
-        latest
-    );
+    tracing::debug!("Current version: {}, Latest version: {}", current, latest);
 
     // Compare versions
     if latest > current {

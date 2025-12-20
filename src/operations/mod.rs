@@ -23,11 +23,11 @@ static SIZE_UNIT_REGEX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"([KMGT]?B)").expect("Size regex pattern is valid"));
 
 // Re-export scan module types and functions
-pub use scan::{scan_for_ba2, ScanProgress};
+pub use scan::{ScanProgress, scan_for_ba2};
 
 // Re-export extract module types and functions
 pub use extract::{
-    extract_all, extract_ba2_file, ExtractionProgress, ExtractionResult, FileExtractionResult,
+    ExtractionProgress, ExtractionResult, FileExtractionResult, extract_all, extract_ba2_file,
 };
 
 // Re-export path utilities
@@ -37,7 +37,7 @@ pub use path::{
 };
 
 // Re-export retry utilities (Phase 2.8)
-pub use retry::{retry, retry_with_config, RetryConfig};
+pub use retry::{RetryConfig, retry, retry_with_config};
 
 /// Information about a discovered BA2 file
 #[derive(Debug, Clone)]
@@ -80,7 +80,11 @@ pub struct BA2FileInfo {
 /// assert_eq!(parse_size("10GB").unwrap(), 10_000_000_000);
 /// ```
 ///
-#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_precision_loss)]
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::cast_precision_loss
+)]
 pub fn parse_size(size_str: &str) -> Result<u64> {
     let mut size_str = size_str.trim().to_uppercase();
 

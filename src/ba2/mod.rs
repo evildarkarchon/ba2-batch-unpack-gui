@@ -63,10 +63,12 @@ impl BA2Header {
     pub fn parse_from_reader<R: Read>(reader: &mut R, path: &Path) -> Result<Self> {
         let mut buffer = [0u8; Self::HEADER_SIZE];
 
-        reader.read_exact(&mut buffer).map_err(|e| BA2Error::Corrupted {
-            path: path.to_path_buf(),
-            reason: format!("Failed to read header: {e}"),
-        })?;
+        reader
+            .read_exact(&mut buffer)
+            .map_err(|e| BA2Error::Corrupted {
+                path: path.to_path_buf(),
+                reason: format!("Failed to read header: {e}"),
+            })?;
 
         // Parse magic number
         let magic = [buffer[0], buffer[1], buffer[2], buffer[3]];

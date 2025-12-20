@@ -15,10 +15,10 @@ use std::path::PathBuf;
 use tracing::Level;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::{
+    EnvFilter, Layer,
     fmt::{self, format::FmtSpan},
     layer::SubscriberExt,
     util::SubscriberInitExt,
-    EnvFilter, Layer,
 };
 
 /// Initialize the logging system
@@ -52,8 +52,9 @@ use tracing_subscriber::{
 /// ```
 pub fn init(config: Option<&AppConfig>) -> Result<Option<WorkerGuard>> {
     // Determine log level from config or default to INFO
-    let log_level = config
-        .map_or(Level::INFO, |c| config_log_level_to_tracing(c.advanced.log_level));
+    let log_level = config.map_or(Level::INFO, |c| {
+        config_log_level_to_tracing(c.advanced.log_level)
+    });
 
     // Check if debug mode is enabled
     let show_debug = config.is_some_and(|c| c.advanced.show_debug);
@@ -127,8 +128,8 @@ pub fn init(config: Option<&AppConfig>) -> Result<Option<WorkerGuard>> {
 ///
 /// Returns both the non-blocking writer and its guard. The guard must be held
 /// for the application lifetime to ensure buffered logs are flushed on shutdown.
-fn create_file_appender(
-) -> Result<Option<(tracing_appender::non_blocking::NonBlocking, WorkerGuard)>> {
+fn create_file_appender()
+-> Result<Option<(tracing_appender::non_blocking::NonBlocking, WorkerGuard)>> {
     // Get application data directory
     let project_dirs = ProjectDirs::from("com", "evildarkarchon", "unpackrr")
         .context("Failed to determine application data directory")?;
@@ -173,18 +174,9 @@ mod tests {
 
     #[test]
     fn test_log_level_conversion() {
-        assert_eq!(
-            config_log_level_to_tracing(LogLevel::Fatal),
-            Level::ERROR
-        );
-        assert_eq!(
-            config_log_level_to_tracing(LogLevel::Error),
-            Level::ERROR
-        );
-        assert_eq!(
-            config_log_level_to_tracing(LogLevel::Warning),
-            Level::WARN
-        );
+        assert_eq!(config_log_level_to_tracing(LogLevel::Fatal), Level::ERROR);
+        assert_eq!(config_log_level_to_tracing(LogLevel::Error), Level::ERROR);
+        assert_eq!(config_log_level_to_tracing(LogLevel::Warning), Level::WARN);
         assert_eq!(config_log_level_to_tracing(LogLevel::Info), Level::INFO);
         assert_eq!(config_log_level_to_tracing(LogLevel::Debug), Level::DEBUG);
         assert_eq!(config_log_level_to_tracing(LogLevel::Trace), Level::TRACE);

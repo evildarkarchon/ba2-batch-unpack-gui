@@ -10,9 +10,9 @@ pub mod notifications;
 
 use crate::config::AppConfig;
 use crate::models::{FileEntry, FileEntryList, SortBy};
-use crate::operations::{extract_all, scan_for_ba2, ExtractionProgress, ScanProgress};
+use crate::operations::{ExtractionProgress, ScanProgress, extract_all, scan_for_ba2};
 use anyhow::Result;
-use humansize::{format_size, BINARY};
+use humansize::{BINARY, format_size};
 use parking_lot::Mutex;
 use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
 use std::path::PathBuf;
@@ -24,7 +24,7 @@ use tokio::sync::mpsc;
 slint::include_modules!();
 
 // Re-export notification types for convenience
-pub use notifications::{show_dialog, show_toast, DialogConfig, ToastData};
+pub use notifications::{DialogConfig, ToastData, show_dialog, show_toast};
 
 /// Initialize and run the UI
 ///
@@ -109,9 +109,7 @@ fn setup_callbacks(main_window: &MainWindow) {
     };
 
     // Phase 2.3: Create extraction control state
-    let extraction_control = Arc::new(Mutex::new(ExtractionControlState {
-        control_tx: None,
-    }));
+    let extraction_control = Arc::new(Mutex::new(ExtractionControlState { control_tx: None }));
 
     // Initialize theme from config
     {
@@ -126,13 +124,17 @@ fn setup_callbacks(main_window: &MainWindow) {
 
     setup_browse_folder_callback(main_window, Arc::clone(&state));
     setup_scan_callback(main_window, Arc::clone(&state));
-    setup_extraction_callback(main_window, Arc::clone(&state), Arc::clone(&extraction_control));
+    setup_extraction_callback(
+        main_window,
+        Arc::clone(&state),
+        Arc::clone(&extraction_control),
+    );
     setup_sort_callback(main_window, Arc::clone(&state));
     setup_threshold_callbacks(main_window, &state); // Phase 2.3
     setup_file_actions_callback(main_window, &state); // Phase 2.3
     setup_open_folder_callback(main_window, Arc::clone(&state)); // Phase 2.3
     setup_extraction_control_callbacks(main_window, &extraction_control); // Phase 2.3
-    setup_settings_callbacks(main_window, Arc::clone(&state)); // Phase 2.2
+    setup_settings_callbacks(main_window, &state); // Phase 2.2
     setup_update_checker_callback(main_window);
     setup_platform_integration(main_window, &state); // Phase 2.9
     setup_log_viewer_callbacks(main_window); // Phase 3.3
@@ -170,7 +172,6 @@ fn setup_browse_folder_callback(main_window: &MainWindow, state: Arc<Mutex<AppSt
                                 tracing::debug!("Saved last used directory to config");
                             }
                         }
-
                     }
                 });
             } else {
@@ -223,116 +224,112 @@ fn setup_scan_callback(main_window: &MainWindow, state: Arc<Mutex<AppState>>) {
             // Spawn scan task
             // Note: scan_for_ba2 uses rayon internally which blocks, so we use the global runtime
             // which is multi-threaded. Ideally this would be spawn_blocking if scan_for_ba2 was sync.
-            let scan_task = tokio::spawn(async move {
-                scan_for_ba2(&path, &config, Some(tx)).await
-            });
+            let scan_task =
+                tokio::spawn(async move { scan_for_ba2(&path, &config, Some(tx)).await });
 
             // Process progress updates
             while let Some(progress) = rx.recv().await {
-                    let weak = weak_clone.clone();
-                    let status = match progress {
-                        ScanProgress::Started { total_dirs } => {
-                            format!("Starting scan of {total_dirs} directories...")
-                        }
-                        ScanProgress::ScanningFolder {
-                            folder,
-                            current,
-                            total,
-                        } => {
-                            format!("Scanning {folder} ({current}/{total})")
-                        }
-                        ScanProgress::FoundBA2 { file_name } => {
-                            format!("Found: {file_name}")
-                        }
-                        ScanProgress::Complete { total_files } => {
-                            format!("Scan complete: {total_files} files found")
-                        }
-                    };
+                let weak = weak_clone.clone();
+                let status = match progress {
+                    ScanProgress::Started { total_dirs } => {
+                        format!("Starting scan of {total_dirs} directories...")
+                    }
+                    ScanProgress::ScanningFolder {
+                        folder,
+                        current,
+                        total,
+                    } => {
+                        format!("Scanning {folder} ({current}/{total})")
+                    }
+                    ScanProgress::FoundBA2 { file_name } => {
+                        format!("Found: {file_name}")
+                    }
+                    ScanProgress::Complete { total_files } => {
+                        format!("Scan complete: {total_files} files found")
+                    }
+                };
 
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = weak.upgrade() {
+                        ui.set_status_text(SharedString::from(status));
+                    }
+                });
+            }
+
+            // Get scan results
+            match scan_task.await {
+                Ok(Ok(files)) => {
+                    let total_files = files.len();
+                    let total_size = files.iter().map(|f| f.file_size).sum::<u64>();
+
+                    tracing::info!(
+                        "Scan complete: found {} BA2 files, total size: {} bytes",
+                        total_files,
+                        total_size
+                    );
+
+                    // Convert to FileEntry and store in state
+                    let entries: Vec<FileEntry> = files.into_iter().map(FileEntry::from).collect();
+
+                    let corrupted_count = entries.iter().filter(|e| e.is_corrupted()).count();
+                    if corrupted_count > 0 {
+                        tracing::warn!("Found {} corrupted BA2 files", corrupted_count);
+                    }
+
+                    // Convert to FileRowData for UI
+                    let row_data: Vec<FileRowData> = entries
+                        .iter()
+                        .map(|e| FileRowData {
+                            file_name: SharedString::from(&e.file_name),
+                            file_size: SharedString::from(e.size_display()),
+                            num_files: SharedString::from(e.file_count_display()),
+                            mod_name: SharedString::from(e.mod_display()),
+                            is_bad: e.is_corrupted(),
+                        })
+                        .collect();
+
+                    // Update state
+                    {
+                        let mut app_state = state_clone.lock();
+                        app_state.file_entries = FileEntryList::from_vec(entries);
+                    }
+
+                    // Update UI
                     let _ = slint::invoke_from_event_loop(move || {
-                        if let Some(ui) = weak.upgrade() {
-                            ui.set_status_text(SharedString::from(status));
+                        if let Some(ui) = weak_clone.upgrade() {
+                            ui.set_file_list(ModelRc::new(VecModel::from(row_data)));
+                            ui.set_total_files(total_files.try_into().unwrap_or(i32::MAX));
+                            ui.set_total_size(SharedString::from(format_size(total_size, BINARY)));
+                            ui.set_scanning(false);
+                            ui.set_status_text(SharedString::from(format!(
+                                "Ready - {total_files} files found"
+                            )));
                         }
                     });
                 }
+                Ok(Err(e)) => {
+                    let error_msg = format!("Scan failed: {e}");
+                    tracing::error!("{}", error_msg);
 
-                // Get scan results
-                match scan_task.await {
-                    Ok(Ok(files)) => {
-                        let total_files = files.len();
-                        let total_size = files.iter().map(|f| f.file_size).sum::<u64>();
-
-                        tracing::info!(
-                            "Scan complete: found {} BA2 files, total size: {} bytes",
-                            total_files,
-                            total_size
-                        );
-
-                        // Convert to FileEntry and store in state
-                        let entries: Vec<FileEntry> = files.into_iter().map(FileEntry::from).collect();
-
-                        let corrupted_count = entries.iter().filter(|e| e.is_corrupted()).count();
-                        if corrupted_count > 0 {
-                            tracing::warn!("Found {} corrupted BA2 files", corrupted_count);
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(ui) = weak_clone.upgrade() {
+                            ui.set_scanning(false);
+                            ui.set_status_text(SharedString::from(error_msg));
                         }
-
-                        // Convert to FileRowData for UI
-                        let row_data: Vec<FileRowData> = entries
-                            .iter()
-                            .map(|e| FileRowData {
-                                file_name: SharedString::from(&e.file_name),
-                                file_size: SharedString::from(e.size_display()),
-                                num_files: SharedString::from(e.file_count_display()),
-                                mod_name: SharedString::from(e.mod_display()),
-                                is_bad: e.is_corrupted(),
-                            })
-                            .collect();
-
-                        // Update state
-                        {
-                            let mut app_state = state_clone.lock();
-                            app_state.file_entries = FileEntryList::from_vec(entries);
-                        }
-
-                        // Update UI
-                        let _ = slint::invoke_from_event_loop(move || {
-                            if let Some(ui) = weak_clone.upgrade() {
-                                ui.set_file_list(ModelRc::new(VecModel::from(row_data)));
-                                ui.set_total_files(total_files.try_into().unwrap_or(i32::MAX));
-                                ui.set_total_size(SharedString::from(format_size(
-                                    total_size,
-                                    BINARY,
-                                )));
-                                ui.set_scanning(false);
-                                ui.set_status_text(SharedString::from(format!(
-                                    "Ready - {total_files} files found"
-                                )));
-                            }
-                        });
-                    }
-                    Ok(Err(e)) => {
-                        let error_msg = format!("Scan failed: {e}");
-                        tracing::error!("{}", error_msg);
-
-                        let _ = slint::invoke_from_event_loop(move || {
-                            if let Some(ui) = weak_clone.upgrade() {
-                                ui.set_scanning(false);
-                                ui.set_status_text(SharedString::from(error_msg));
-                            }
-                        });
-                    }
-                    Err(e) => {
-                        tracing::error!("Scan task failed: {}", e);
-
-                        let _ = slint::invoke_from_event_loop(move || {
-                            if let Some(ui) = weak_clone.upgrade() {
-                                ui.set_scanning(false);
-                                ui.set_status_text(SharedString::from("Scan task failed"));
-                            }
-                        });
-                    }
+                    });
                 }
-            });
+                Err(e) => {
+                    tracing::error!("Scan task failed: {}", e);
+
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(ui) = weak_clone.upgrade() {
+                            ui.set_scanning(false);
+                            ui.set_status_text(SharedString::from("Scan task failed"));
+                        }
+                    });
+                }
+            }
+        });
     });
 }
 
@@ -718,6 +715,7 @@ fn setup_sort_callback(main_window: &MainWindow, state: Arc<Mutex<AppState>>) {
 
             app_state.sort_column = column;
             app_state.sort_ascending = ascending;
+            drop(app_state);
 
             // reverse=true means Descending (Z-A, 9-0)
             // reverse=false means Ascending (A-Z, 0-9)
@@ -1233,11 +1231,14 @@ fn setup_open_folder_callback(main_window: &MainWindow, state: Arc<Mutex<AppStat
                 let weak_clone = weak.clone();
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(ui) = weak_clone.upgrade() {
-                        show_toast(&ui, &ToastData {
-                            message: error_msg,
-                            notification_type: NotificationType::Error,
-                            show: true,
-                        });
+                        show_toast(
+                            &ui,
+                            &ToastData {
+                                message: error_msg,
+                                notification_type: NotificationType::Error,
+                                show: true,
+                            },
+                        );
                     }
                 });
             }
@@ -1250,11 +1251,14 @@ fn setup_open_folder_callback(main_window: &MainWindow, state: Arc<Mutex<AppStat
                 let weak_clone = weak.clone();
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(ui) = weak_clone.upgrade() {
-                        show_toast(&ui, &ToastData {
-                            message: error_msg,
-                            notification_type: NotificationType::Error,
-                            show: true,
-                        });
+                        show_toast(
+                            &ui,
+                            &ToastData {
+                                message: error_msg,
+                                notification_type: NotificationType::Error,
+                                show: true,
+                            },
+                        );
                     }
                 });
             }
@@ -1300,7 +1304,11 @@ fn refresh_file_table(ui: &MainWindow, state: &Arc<Mutex<AppState>>, threshold: 
     tracing::debug!(
         "Refreshed table: {} files shown{}",
         filtered_entries.len(),
-        if threshold.is_some() { " (filtered)" } else { "" }
+        if threshold.is_some() {
+            " (filtered)"
+        } else {
+            ""
+        }
     );
 }
 
@@ -1347,17 +1355,15 @@ fn setup_log_viewer_callbacks(main_window: &MainWindow) {
                         // Parse color string to slint::Color
                         let color = slint::Color::from_argb_encoded(
                             u32::from_str_radix(&color_str[1..], 16).unwrap_or(0xFFFF_FFFF)
-                                | 0xFF00_0000 // Ensure full opacity
+                                | 0xFF00_0000, // Ensure full opacity
                         );
 
                         LogRowData {
                             timestamp: SharedString::from(
-                                entry.timestamp.clone().unwrap_or_default()
+                                entry.timestamp.clone().unwrap_or_default(),
                             ),
                             level: SharedString::from(level_str),
-                            target: SharedString::from(
-                                entry.target.clone().unwrap_or_default()
-                            ),
+                            target: SharedString::from(entry.target.clone().unwrap_or_default()),
                             message: SharedString::from(entry.message.clone()),
                             color,
                         }
@@ -1487,52 +1493,60 @@ mod tests {
     }
 }
 /// Set up settings callbacks (Phase 2.2)
-fn setup_settings_callbacks(main_window: &MainWindow, state: Arc<Mutex<AppState>>) {
+fn setup_settings_callbacks(main_window: &MainWindow, state: &Arc<Mutex<AppState>>) {
     // Handle setting changes
-    let state_for_settings = Arc::clone(&state);
+    let state_for_settings = Arc::clone(state);
     main_window.on_settings_changed(move |key, value| {
         let key_str = key.to_string();
         let value_str = value.to_string();
         tracing::info!("Setting changed: {} = {}", key_str, value_str);
 
         let state_clone = Arc::clone(&state_for_settings);
-        
+
         // Update config in background to avoid blocking UI
         std::thread::spawn(move || {
-            let mut app_state = state_clone.lock();
-            let config = &mut app_state.config;
-            let mut save_needed = true;
+            let save_result = {
+                let mut app_state = state_clone.lock();
+                let config = &mut app_state.config;
+                let mut save_needed = true;
 
-            match key_str.as_str() {
-                "postfixes" => {
-                    // Split by comma and trim
-                    config.extraction.postfixes = value_str
-                        .split(',')
-                        .map(|s| s.trim().to_string())
-                        .filter(|s| !s.is_empty())
-                        .collect();
+                match key_str.as_str() {
+                    "postfixes" => {
+                        // Split by comma and trim
+                        config.extraction.postfixes = value_str
+                            .split(',')
+                            .map(|s| s.trim().to_string())
+                            .filter(|s| !s.is_empty())
+                            .collect();
+                    }
+                    "ignored_files" => {
+                        config.extraction.ignored_files = value_str
+                            .split(',')
+                            .map(|s| s.trim().to_string())
+                            .filter(|s| !s.is_empty())
+                            .collect();
+                    }
+                    "theme_mode" => {
+                        config.appearance.theme_mode = value_str;
+                    }
+                    "language" => {
+                        config.appearance.language = value_str;
+                    }
+                    _ => {
+                        tracing::warn!("Unknown setting key: {}", key_str);
+                        save_needed = false;
+                    }
                 }
-                "ignored_files" => {
-                    config.extraction.ignored_files = value_str
-                        .split(',')
-                        .map(|s| s.trim().to_string())
-                        .filter(|s| !s.is_empty())
-                        .collect();
-                }
-                "theme_mode" => {
-                    config.appearance.theme_mode = value_str;
-                }
-                "language" => {
-                    config.appearance.language = value_str;
-                }
-                _ => {
-                    tracing::warn!("Unknown setting key: {}", key_str);
-                    save_needed = false;
-                }
-            }
 
-            if save_needed {
-                if let Err(e) = config.save() {
+                if save_needed {
+                    Some(config.save())
+                } else {
+                    None
+                }
+            };
+
+            if let Some(result) = save_result {
+                if let Err(e) = result {
                     tracing::error!("Failed to save configuration: {}", e);
                 } else {
                     tracing::debug!("Configuration saved");
@@ -1542,33 +1556,38 @@ fn setup_settings_callbacks(main_window: &MainWindow, state: Arc<Mutex<AppState>
     });
 
     // Handle toggle changes
-    let state_for_toggles = Arc::clone(&state);
+    let state_for_toggles = Arc::clone(state);
     main_window.on_settings_toggle_changed(move |key, value| {
         let key_str = key.to_string();
         tracing::info!("Toggle setting changed: {} = {}", key_str, value);
 
         let state = Arc::clone(&state_for_toggles);
-        
         std::thread::spawn(move || {
-            let mut app_state = state.lock();
-            let config = &mut app_state.config;
-            let mut save_needed = true;
+            let save_result = {
+                let mut app_state = state.lock();
+                let config = &mut app_state.config;
+                let mut save_needed = true;
 
-            match key_str.as_str() {
-                "ignore_bad_files" => config.extraction.ignore_bad_files = value,
-                "auto_backup" => config.extraction.auto_backup = value,
-                "check_updates" => config.update.check_at_startup = value,
-                "show_debug" => config.advanced.show_debug = value,
-                _ => {
-                    tracing::warn!("Unknown toggle setting key: {}", key_str);
-                    save_needed = false;
+                match key_str.as_str() {
+                    "ignore_bad_files" => config.extraction.ignore_bad_files = value,
+                    "auto_backup" => config.extraction.auto_backup = value,
+                    "check_updates" => config.update.check_at_startup = value,
+                    "show_debug" => config.advanced.show_debug = value,
+                    _ => {
+                        tracing::warn!("Unknown toggle setting key: {}", key_str);
+                        save_needed = false;
+                    }
                 }
-            }
 
-            if save_needed {
-                if let Err(e) = config.save() {
-                    tracing::error!("Failed to save configuration: {}", e);
+                if save_needed {
+                    Some(config.save())
+                } else {
+                    None
                 }
+            };
+
+            if let Some(Err(e)) = save_result {
+                tracing::error!("Failed to save configuration: {}", e);
             }
         });
     });

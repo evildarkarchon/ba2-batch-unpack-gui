@@ -123,9 +123,10 @@ fn dismiss_toast(window: &MainWindow, index: usize) {
 
     for i in 0..current_toasts.row_count() {
         if i != index
-            && let Some(toast_tuple) = current_toasts.row_data(i) {
-                toasts_vec.push(toast_tuple);
-            }
+            && let Some(toast_tuple) = current_toasts.row_data(i)
+        {
+            toasts_vec.push(toast_tuple);
+        }
     }
 
     let new_model = Rc::new(VecModel::from(toasts_vec));
@@ -235,12 +236,7 @@ pub fn show_dialog(window: &MainWindow, config: DialogConfig) {
     window.set_dialog_message(config.message.into());
     window.set_dialog_type(config.dialog_type);
     window.set_dialog_primary_button(config.primary_button.into());
-    window.set_dialog_secondary_button(
-        config
-            .secondary_button
-            .unwrap_or_default()
-            .into(),
-    );
+    window.set_dialog_secondary_button(config.secondary_button.unwrap_or_default().into());
     window.set_show_dialog(true);
 }
 
@@ -257,10 +253,7 @@ mod tests {
     fn test_toast_data_success() {
         let toast = ToastData::success("Test message");
         assert_eq!(toast.message, "Test message");
-        assert!(matches!(
-            toast.notification_type,
-            NotificationType::Success
-        ));
+        assert!(matches!(toast.notification_type, NotificationType::Success));
         assert!(toast.show);
     }
 
@@ -276,10 +269,7 @@ mod tests {
     fn test_toast_data_warning() {
         let toast = ToastData::warning("Warning message");
         assert_eq!(toast.message, "Warning message");
-        assert!(matches!(
-            toast.notification_type,
-            NotificationType::Warning
-        ));
+        assert!(matches!(toast.notification_type, NotificationType::Warning));
         assert!(toast.show);
     }
 

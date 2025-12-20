@@ -69,11 +69,11 @@ impl LogLevel {
     /// Get color code for this level (as RGB hex string for Slint)
     pub const fn color(&self) -> &'static str {
         match self {
-            Self::Error => "#FF0000",      // Red
-            Self::Warn => "#FF6A5B",       // Light red/orange
-            Self::Info => "#FFFFFF",       // White
-            Self::Debug => "#A0A0A0",      // Light gray
-            Self::Trace => "#808080",      // Gray
+            Self::Error => "#FF0000", // Red
+            Self::Warn => "#FF6A5B",  // Light red/orange
+            Self::Info => "#FFFFFF",  // White
+            Self::Debug => "#A0A0A0", // Light gray
+            Self::Trace => "#808080", // Gray
         }
     }
 }
@@ -273,11 +273,16 @@ mod tests {
 
     #[test]
     fn test_parse_structured_log() {
-        let line = "2025-01-22T10:30:45.123456Z  INFO unpackrr::operations::scan: Starting BA2 scan".to_string();
+        let line =
+            "2025-01-22T10:30:45.123456Z  INFO unpackrr::operations::scan: Starting BA2 scan"
+                .to_string();
         let entry = LogEntry::parse(line);
 
         assert_eq!(entry.level, Some(LogLevel::Info));
-        assert_eq!(entry.timestamp, Some("2025-01-22T10:30:45.123456Z".to_string()));
+        assert_eq!(
+            entry.timestamp,
+            Some("2025-01-22T10:30:45.123456Z".to_string())
+        );
         assert_eq!(entry.target, Some("unpackrr::operations::scan".to_string()));
         assert_eq!(entry.message, "Starting BA2 scan");
     }
@@ -311,8 +316,10 @@ mod tests {
 
     #[test]
     fn test_matches_filter() {
-        let info_entry = LogEntry::parse("2025-01-22T10:30:45.123456Z  INFO test: message".to_string());
-        let debug_entry = LogEntry::parse("2025-01-22T10:30:45.123456Z DEBUG test: message".to_string());
+        let info_entry =
+            LogEntry::parse("2025-01-22T10:30:45.123456Z  INFO test: message".to_string());
+        let debug_entry =
+            LogEntry::parse("2025-01-22T10:30:45.123456Z DEBUG test: message".to_string());
 
         // Info filter should show info and above
         assert!(info_entry.matches_filter(Some(LogLevel::Info)));
@@ -331,10 +338,18 @@ mod tests {
     fn test_log_viewer_filtering() {
         let mut viewer = LogViewer::new();
 
-        viewer.entries.push(LogEntry::parse("2025-01-22T10:30:45.123456Z ERROR test: error".to_string()));
-        viewer.entries.push(LogEntry::parse("2025-01-22T10:30:45.123456Z  WARN test: warning".to_string()));
-        viewer.entries.push(LogEntry::parse("2025-01-22T10:30:45.123456Z  INFO test: info".to_string()));
-        viewer.entries.push(LogEntry::parse("2025-01-22T10:30:45.123456Z DEBUG test: debug".to_string()));
+        viewer.entries.push(LogEntry::parse(
+            "2025-01-22T10:30:45.123456Z ERROR test: error".to_string(),
+        ));
+        viewer.entries.push(LogEntry::parse(
+            "2025-01-22T10:30:45.123456Z  WARN test: warning".to_string(),
+        ));
+        viewer.entries.push(LogEntry::parse(
+            "2025-01-22T10:30:45.123456Z  INFO test: info".to_string(),
+        ));
+        viewer.entries.push(LogEntry::parse(
+            "2025-01-22T10:30:45.123456Z DEBUG test: debug".to_string(),
+        ));
 
         // No filter - show all
         assert_eq!(viewer.get_filtered_entries().len(), 4);
@@ -352,11 +367,21 @@ mod tests {
     fn test_level_counts() {
         let mut viewer = LogViewer::new();
 
-        viewer.entries.push(LogEntry::parse("2025-01-22T10:30:45.123456Z ERROR test: error1".to_string()));
-        viewer.entries.push(LogEntry::parse("2025-01-22T10:30:45.123456Z ERROR test: error2".to_string()));
-        viewer.entries.push(LogEntry::parse("2025-01-22T10:30:45.123456Z  WARN test: warning".to_string()));
-        viewer.entries.push(LogEntry::parse("2025-01-22T10:30:45.123456Z  INFO test: info".to_string()));
-        viewer.entries.push(LogEntry::parse("2025-01-22T10:30:45.123456Z DEBUG test: debug".to_string()));
+        viewer.entries.push(LogEntry::parse(
+            "2025-01-22T10:30:45.123456Z ERROR test: error1".to_string(),
+        ));
+        viewer.entries.push(LogEntry::parse(
+            "2025-01-22T10:30:45.123456Z ERROR test: error2".to_string(),
+        ));
+        viewer.entries.push(LogEntry::parse(
+            "2025-01-22T10:30:45.123456Z  WARN test: warning".to_string(),
+        ));
+        viewer.entries.push(LogEntry::parse(
+            "2025-01-22T10:30:45.123456Z  INFO test: info".to_string(),
+        ));
+        viewer.entries.push(LogEntry::parse(
+            "2025-01-22T10:30:45.123456Z DEBUG test: debug".to_string(),
+        ));
 
         let (trace, debug, info, warn, error) = viewer.get_level_counts();
         assert_eq!(trace, 0);

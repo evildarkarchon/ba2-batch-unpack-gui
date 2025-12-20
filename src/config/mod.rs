@@ -15,8 +15,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 /// Main application configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AppConfig {
     /// Extraction-related settings
     pub extraction: ExtractionConfig,
@@ -56,8 +55,7 @@ pub struct ExtractionConfig {
 }
 
 /// Saved user settings
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SavedConfig {
     /// Last used directory
     #[serde(default)]
@@ -150,7 +148,6 @@ const fn default_true() -> bool {
     true
 }
 
-
 impl Default for ExtractionConfig {
     fn default() -> Self {
         Self {
@@ -161,7 +158,6 @@ impl Default for ExtractionConfig {
         }
     }
 }
-
 
 impl Default for AppearanceConfig {
     fn default() -> Self {
@@ -186,7 +182,6 @@ impl Default for AdvancedConfig {
     }
 }
 
-
 impl Default for UpdateConfig {
     fn default() -> Self {
         Self {
@@ -200,7 +195,10 @@ impl AppConfig {
     pub fn config_dir() -> Result<PathBuf> {
         ProjectDirs::from("com", "evildarkarchon", "unpackrr")
             .map(|dirs| dirs.config_dir().to_path_buf())
-            .ok_or_else(|| ConfigError::ValidationFailed("Could not determine config directory".to_string()).into())
+            .ok_or_else(|| {
+                ConfigError::ValidationFailed("Could not determine config directory".to_string())
+                    .into()
+            })
     }
 
     /// Get the configuration file path
@@ -213,24 +211,29 @@ impl AppConfig {
         let config_path = Self::config_file_path()?;
 
         if !config_path.exists() {
-            tracing::info!("Configuration file not found, creating default at: {}", config_path.display());
+            tracing::info!(
+                "Configuration file not found, creating default at: {}",
+                config_path.display()
+            );
             let default_config = Self::default();
             default_config.save()?;
             return Ok(default_config);
         }
 
-        let content = fs::read_to_string(&config_path)
-            .map_err(|e| ConfigError::LoadFailed {
-                path: config_path.clone(),
-                source: e,
-            })?;
+        let content = fs::read_to_string(&config_path).map_err(|e| ConfigError::LoadFailed {
+            path: config_path.clone(),
+            source: e,
+        })?;
 
         let config: Self = serde_json::from_str(&content)
             .map_err(|e| ConfigError::InvalidFormat(e.to_string()))?;
 
         config.validate()?;
 
-        tracing::info!("Configuration loaded successfully from: {}", config_path.display());
+        tracing::info!(
+            "Configuration loaded successfully from: {}",
+            config_path.display()
+        );
         Ok(config)
     }
 
@@ -243,24 +246,25 @@ impl AppConfig {
 
         // Create config directory if it doesn't exist
         if let Some(parent) = config_path.parent() {
-            fs::create_dir_all(parent)
-                .map_err(|e| ConfigError::SaveFailed {
-                    path: parent.to_path_buf(),
-                    source: e,
-                })?;
+            fs::create_dir_all(parent).map_err(|e| ConfigError::SaveFailed {
+                path: parent.to_path_buf(),
+                source: e,
+            })?;
         }
 
         // Serialize with pretty formatting
         let content = serde_json::to_string_pretty(self)
             .map_err(|e| ConfigError::InvalidFormat(e.to_string()))?;
 
-        fs::write(&config_path, content)
-            .map_err(|e| ConfigError::SaveFailed {
-                path: config_path.clone(),
-                source: e,
-            })?;
+        fs::write(&config_path, content).map_err(|e| ConfigError::SaveFailed {
+            path: config_path.clone(),
+            source: e,
+        })?;
 
-        tracing::info!("Configuration saved successfully to: {}", config_path.display());
+        tracing::info!(
+            "Configuration saved successfully to: {}",
+            config_path.display()
+        );
         Ok(())
     }
 
@@ -272,9 +276,10 @@ impl AppConfig {
                 .extension()
                 .is_some_and(|ext| ext.eq_ignore_ascii_case("ba2"))
             {
-                return Err(ConfigError::ValidationFailed(
-                    format!("Postfix '{postfix}' must end with .ba2")
-                ).into());
+                return Err(ConfigError::ValidationFailed(format!(
+                    "Postfix '{postfix}' must end with .ba2"
+                ))
+                .into());
             }
         }
 
@@ -306,12 +311,14 @@ impl AppConfig {
         // Validate ignored files regex patterns if they look like regex
         for pattern in &self.extraction.ignored_files {
             if looks_like_regex(pattern)
-                && let Err(e) = Regex::new(pattern) {
-                    return Err(ConfigError::InvalidRegex {
-                        pattern: pattern.clone(),
-                        source: e,
-                    }.into());
+                && let Err(e) = Regex::new(pattern)
+            {
+                return Err(ConfigError::InvalidRegex {
+                    pattern: pattern.clone(),
+                    source: e,
                 }
+                .into());
+            }
         }
 
         Ok(())
@@ -323,11 +330,10 @@ impl AppConfig {
         let mut patterns = Vec::new();
         for pattern in &self.extraction.ignored_files {
             if looks_like_regex(pattern) {
-                let regex = Regex::new(pattern)
-                    .map_err(|e| ConfigError::InvalidRegex {
-                        pattern: pattern.clone(),
-                        source: e,
-                    })?;
+                let regex = Regex::new(pattern).map_err(|e| ConfigError::InvalidRegex {
+                    pattern: pattern.clone(),
+                    source: e,
+                })?;
                 patterns.push(regex);
             }
         }
@@ -355,7 +361,11 @@ impl AppConfig {
         };
 
         // Check exact path match
-        if self.extraction.ignored_files.contains(&path.to_string_lossy().to_string()) {
+        if self
+            .extraction
+            .ignored_files
+            .contains(&path.to_string_lossy().to_string())
+        {
             return true;
         }
 
@@ -380,8 +390,9 @@ pub fn resolve_path(path: &str) -> Result<PathBuf> {
         dunce::canonicalize(&path_buf).unwrap_or(path_buf)
     } else {
         // Resolve relative to current directory
-        let current_dir = std::env::current_dir()
-            .map_err(|e| ConfigError::ValidationFailed(format!("Cannot get current directory: {e}")))?;
+        let current_dir = std::env::current_dir().map_err(|e| {
+            ConfigError::ValidationFailed(format!("Cannot get current directory: {e}"))
+        })?;
         let full_path = current_dir.join(&path_buf);
         dunce::canonicalize(&full_path).unwrap_or(full_path)
     };
@@ -409,7 +420,11 @@ fn looks_like_regex(pattern: &str) -> bool {
 }
 
 /// Check if a file should be ignored based on the configured patterns
-pub fn should_ignore_file(file_name: &str, ignored_files: &[String], regex_patterns: &[Regex]) -> bool {
+pub fn should_ignore_file(
+    file_name: &str,
+    ignored_files: &[String],
+    regex_patterns: &[Regex],
+) -> bool {
     // First check exact matches and substrings
     for pattern in ignored_files {
         if !looks_like_regex(pattern) {
@@ -480,7 +495,11 @@ mod tests {
         let patterns = vec![];
 
         assert!(should_ignore_file("test_file.ba2", &ignored, &patterns));
-        assert!(should_ignore_file("debug_textures.ba2", &ignored, &patterns));
+        assert!(should_ignore_file(
+            "debug_textures.ba2",
+            &ignored,
+            &patterns
+        ));
         assert!(!should_ignore_file("main.ba2", &ignored, &patterns));
     }
 

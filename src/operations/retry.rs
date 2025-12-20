@@ -95,11 +95,7 @@ where
 
                 // Check if we should retry
                 if !e.is_transient() || attempts > config.max_attempts {
-                    tracing::debug!(
-                        "Operation failed after {} attempts: {}",
-                        attempts,
-                        e
-                    );
+                    tracing::debug!("Operation failed after {} attempts: {}", attempts, e);
                     return Err(e);
                 }
 
@@ -117,7 +113,8 @@ where
 
                 // Calculate next delay with exponential backoff
                 delay = Duration::from_secs_f64(
-                    (delay.as_secs_f64() * config.backoff_multiplier).min(config.max_delay.as_secs_f64())
+                    (delay.as_secs_f64() * config.backoff_multiplier)
+                        .min(config.max_delay.as_secs_f64()),
                 );
             }
         }
@@ -149,8 +146,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     #[test]
     fn test_retry_succeeds_on_first_attempt() {
@@ -167,7 +164,9 @@ mod tests {
             let count = counter_clone.fetch_add(1, Ordering::SeqCst);
             if count < 2 {
                 // Fail with transient error first two times
-                Err(Error::IO(std::io::Error::from(std::io::ErrorKind::Interrupted)))
+                Err(Error::IO(std::io::Error::from(
+                    std::io::ErrorKind::Interrupted,
+                )))
             } else {
                 Ok(42)
             }
@@ -205,7 +204,9 @@ mod tests {
 
         let result: Result<i32, Error> = retry_with_config(&config, move || {
             counter_clone.fetch_add(1, Ordering::SeqCst);
-            Err(Error::IO(std::io::Error::from(std::io::ErrorKind::Interrupted)))
+            Err(Error::IO(std::io::Error::from(
+                std::io::ErrorKind::Interrupted,
+            )))
         });
 
         assert!(result.is_err());

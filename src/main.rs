@@ -1,5 +1,5 @@
-use unpackrr::{config::AppConfig, logging, ui};
 use std::panic;
+use unpackrr::{config::AppConfig, logging, ui};
 
 fn main() -> anyhow::Result<()> {
     // Load configuration (if available)

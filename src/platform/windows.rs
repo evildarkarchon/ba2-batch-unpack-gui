@@ -3,8 +3,8 @@
 //! Provides Windows registry access to detect default BA2 file handlers.
 
 use std::path::PathBuf;
-use winreg::enums::{HKEY_CURRENT_USER, HKEY_CLASSES_ROOT};
 use winreg::RegKey;
+use winreg::enums::{HKEY_CLASSES_ROOT, HKEY_CURRENT_USER};
 
 /// Get the default application for .ba2 files from Windows registry
 ///

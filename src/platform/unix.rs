@@ -25,9 +25,7 @@ use std::path::PathBuf;
 /// assert_eq!(handler, None); // Always None on Unix
 /// ```
 pub fn get_default_ba2_handler() -> Result<Option<PathBuf>> {
-    tracing::debug!(
-        "get_default_ba2_handler() called on non-Windows platform - returning None"
-    );
+    tracing::debug!("get_default_ba2_handler() called on non-Windows platform - returning None");
     Ok(None)
 }
 

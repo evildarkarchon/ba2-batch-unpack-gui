@@ -83,7 +83,7 @@ pub enum BA2Error {
     #[error("Invalid BA2 magic number in file {path}")]
     InvalidMagic {
         /// Path to the BA2 file with invalid magic number
-        path: PathBuf
+        path: PathBuf,
     },
 
     /// Unsupported BA2 version
@@ -92,7 +92,7 @@ pub enum BA2Error {
         /// The unsupported version number
         version: u32,
         /// Path to the BA2 file
-        path: PathBuf
+        path: PathBuf,
     },
 
     /// Corrupted BA2 file
@@ -101,7 +101,7 @@ pub enum BA2Error {
         /// Path to the corrupted BA2 file
         path: PathBuf,
         /// Reason for corruption
-        reason: String
+        reason: String,
     },
 
     /// Failed to extract BA2 file
@@ -110,14 +110,14 @@ pub enum BA2Error {
         /// Path to the BA2 file
         path: PathBuf,
         /// Reason for extraction failure
-        reason: String
+        reason: String,
     },
 
     /// BSArch.exe not found
     #[error("BSArch.exe not found at expected location: {path}")]
     BSArchNotFound {
         /// Expected path to BSArch.exe
-        path: PathBuf
+        path: PathBuf,
     },
 
     /// BSArch.exe execution failed
@@ -219,11 +219,7 @@ impl Error {
                     )
                 }
                 BA2Error::Corrupted { path, reason } => {
-                    format!(
-                        "BA2 file '{}' is corrupted: {}",
-                        path.display(),
-                        reason
-                    )
+                    format!("BA2 file '{}' is corrupted: {}", path.display(), reason)
                 }
                 BA2Error::ExtractionFailed { path, reason } => {
                     format!("Failed to extract '{}': {}", path.display(), reason)
@@ -239,7 +235,9 @@ impl Error {
                 use std::io::ErrorKind;
                 match e.kind() {
                     ErrorKind::NotFound => "File or folder not found".to_string(),
-                    ErrorKind::PermissionDenied => "Permission denied - check file permissions".to_string(),
+                    ErrorKind::PermissionDenied => {
+                        "Permission denied - check file permissions".to_string()
+                    }
                     ErrorKind::AlreadyExists => "File already exists".to_string(),
                     ErrorKind::InvalidInput => "Invalid input provided".to_string(),
                     ErrorKind::TimedOut => "Operation timed out".to_string(),

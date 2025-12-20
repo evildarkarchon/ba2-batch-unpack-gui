@@ -21,7 +21,7 @@ pub enum ScanProgress {
     /// Started scanning a directory
     Started {
         /// Total number of directories to scan
-        total_dirs: usize
+        total_dirs: usize,
     },
 
     /// Scanning a specific mod folder
@@ -31,19 +31,19 @@ pub enum ScanProgress {
         /// Current directory index
         current: usize,
         /// Total number of directories
-        total: usize
+        total: usize,
     },
 
     /// Found a BA2 file
     FoundBA2 {
         /// Name of the BA2 file found
-        file_name: String
+        file_name: String,
     },
 
     /// Finished scanning
     Complete {
         /// Total number of BA2 files discovered
-        total_files: usize
+        total_files: usize,
     },
 }
 
@@ -97,8 +97,12 @@ pub async fn scan_for_ba2(
     }
 
     // List all first-tier directories (mod folders)
-    let entries = fs::read_dir(path)
-        .map_err(|e| std::io::Error::new(e.kind(), format!("Failed to read directory {}: {}", path.display(), e)))?;
+    let entries = fs::read_dir(path).map_err(|e| {
+        std::io::Error::new(
+            e.kind(),
+            format!("Failed to read directory {}: {}", path.display(), e),
+        )
+    })?;
 
     let mut mod_folders: Vec<PathBuf> = Vec::new();
 
@@ -117,9 +121,11 @@ pub async fn scan_for_ba2(
 
     // Send started progress
     if let Some(ref tx) = progress_tx {
-        let _ = tx.send(ScanProgress::Started {
-            total_dirs: total_folders,
-        }).await;
+        let _ = tx
+            .send(ScanProgress::Started {
+                total_dirs: total_folders,
+            })
+            .await;
     }
 
     // Use rayon for parallel scanning of mod folders
@@ -138,9 +144,11 @@ pub async fn scan_for_ba2(
 
     // Send completion progress
     if let Some(ref tx) = progress_tx {
-        let _ = tx.send(ScanProgress::Complete {
-            total_files: all_ba2.len(),
-        }).await;
+        let _ = tx
+            .send(ScanProgress::Complete {
+                total_files: all_ba2.len(),
+            })
+            .await;
     }
 
     debug!("Scan complete. Found {} BA2 files", all_ba2.len());
@@ -343,9 +351,8 @@ mod tests {
         let (tx, mut rx) = mpsc::channel(100);
 
         // Run scan in background task
-        let scan_task = tokio::spawn(async move {
-            scan_for_ba2(&data_path, &config, Some(tx)).await
-        });
+        let scan_task =
+            tokio::spawn(async move { scan_for_ba2(&data_path, &config, Some(tx)).await });
 
         // Collect progress updates
         let mut progress_updates = Vec::new();
@@ -360,8 +367,16 @@ mod tests {
         assert!(!progress_updates.is_empty());
 
         // Check for Started and Complete messages
-        assert!(progress_updates.iter().any(|p| matches!(p, ScanProgress::Started { .. })));
-        assert!(progress_updates.iter().any(|p| matches!(p, ScanProgress::Complete { .. })));
+        assert!(
+            progress_updates
+                .iter()
+                .any(|p| matches!(p, ScanProgress::Started { .. }))
+        );
+        assert!(
+            progress_updates
+                .iter()
+                .any(|p| matches!(p, ScanProgress::Complete { .. }))
+        );
     }
 
     #[tokio::test]

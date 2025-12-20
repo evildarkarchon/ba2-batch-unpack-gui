@@ -10,7 +10,7 @@ use futures::stream::{self, StreamExt};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::process::Command;
-use tokio::sync::{mpsc, Semaphore};
+use tokio::sync::{Semaphore, mpsc};
 
 /// Progress updates during extraction
 #[derive(Debug, Clone)]
@@ -157,9 +157,7 @@ pub async fn extract_ba2_file(
     // Build BSArch command
     // Format: BSArch.exe unpack <ba2_file> <output_dir>
     let mut cmd = Command::new(bsarch_path);
-    cmd.arg("unpack")
-        .arg(ba2_path)
-        .arg(output_path);
+    cmd.arg("unpack").arg(ba2_path).arg(output_path);
 
     // On Windows, hide the console window to prevent flickering
     #[cfg(target_os = "windows")]
@@ -208,13 +206,14 @@ pub async fn extract_all(
     // Use external BA2 tool if specified, otherwise use bundled BSArch.exe
     let bsarch_path = if config.advanced.ext_ba2_exe.is_empty() {
         // Default to bundled version in the same directory as the executable
-        match std::env::current_exe() {
-            Ok(exe_path) => exe_path
-                .parent()
-                .map(|p| p.join("BSArch.exe"))
-                .unwrap_or_else(|| PathBuf::from("BSArch.exe")),
-            Err(_) => PathBuf::from("BSArch.exe"),
-        }
+        std::env::current_exe().map_or_else(
+            |_| PathBuf::from("BSArch.exe"),
+            |exe_path| {
+                exe_path
+                    .parent()
+                    .map_or_else(|| PathBuf::from("BSArch.exe"), |p| p.join("BSArch.exe"))
+            },
+        )
     } else {
         PathBuf::from(&config.advanced.ext_ba2_exe)
     };
@@ -225,7 +224,7 @@ pub async fn extract_all(
         .map(std::num::NonZero::get)
         .unwrap_or(4)
         .clamp(1, 8);
-    
+
     tracing::debug!("Extracting with concurrency limit: {}", concurrency_limit);
 
     let semaphore = Arc::new(Semaphore::new(concurrency_limit));
@@ -238,11 +237,11 @@ pub async fn extract_all(
             let progress_tx = progress_tx.clone();
             let semaphore = semaphore.clone();
             let current_counter = current_counter.clone();
-            
+
             // We must clone the data we need before the async block
             let file_path = file_entry.full_path.clone();
             let file_name = file_entry.file_name;
-            
+
             async move {
                 // Acquire permit to limit concurrency
                 let Ok(_permit) = semaphore.acquire().await else {
@@ -258,15 +257,18 @@ pub async fn extract_all(
 
                 // Send started progress
                 if let Some(ref tx) = progress_tx {
-                    let _ = tx.send(ExtractionProgress::Started {
-                        file_name: file_name.clone(),
-                        current,
-                        total,
-                    }).await;
+                    let _ = tx
+                        .send(ExtractionProgress::Started {
+                            file_name: file_name.clone(),
+                            current,
+                            total,
+                        })
+                        .await;
                 }
 
                 // Perform extraction
-                let extraction_result = match extract_ba2_file(&file_path, None, &bsarch_path).await {
+                let extraction_result = match extract_ba2_file(&file_path, None, &bsarch_path).await
+                {
                     Ok(()) => FileExtractionResult {
                         file_path: file_path.clone(),
                         success: true,
@@ -281,11 +283,13 @@ pub async fn extract_all(
 
                 // Send completed progress
                 if let Some(ref tx) = progress_tx {
-                    let _ = tx.send(ExtractionProgress::Completed {
-                        file_name: file_name.clone(),
-                        success: extraction_result.success,
-                        error: extraction_result.error.clone(),
-                    }).await;
+                    let _ = tx
+                        .send(ExtractionProgress::Completed {
+                            file_name: file_name.clone(),
+                            success: extraction_result.success,
+                            error: extraction_result.error.clone(),
+                        })
+                        .await;
                 }
 
                 extraction_result

@@ -5,7 +5,7 @@
 //! - Sorting and comparison logic
 //! - Display formatting helpers
 
-use crate::operations::{format_size, BA2FileInfo};
+use crate::operations::{BA2FileInfo, format_size};
 use std::cmp::Ordering;
 use std::path::PathBuf;
 
@@ -188,11 +188,7 @@ impl FileEntryList {
     pub fn sort_by(&mut self, sort_by: SortBy, reverse: bool) {
         self.entries.sort_by(|a, b| {
             let ord = a.compare(b, sort_by);
-            if reverse {
-                ord.reverse()
-            } else {
-                ord
-            }
+            if reverse { ord.reverse() } else { ord }
         });
     }
 
@@ -324,7 +320,7 @@ mod tests {
         let large = create_test_entry("large.ba2", 2000, 20, false);
 
         // Ord implementation is still Descending Size
-        assert_eq!(small.cmp(&large), Ordering::Greater); 
+        assert_eq!(small.cmp(&large), Ordering::Greater);
         assert_eq!(large.cmp(&small), Ordering::Less);
     }
 

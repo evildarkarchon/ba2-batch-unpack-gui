@@ -21,10 +21,7 @@ fn test_config_round_trip_serialization() {
         config.extraction.postfixes,
         deserialized.extraction.postfixes
     );
-    assert_eq!(
-        config.advanced.show_debug,
-        deserialized.advanced.show_debug
-    );
+    assert_eq!(config.advanced.show_debug, deserialized.advanced.show_debug);
     assert_eq!(config.appearance.language, deserialized.appearance.language);
 }
 
@@ -89,7 +86,10 @@ fn test_invalid_postfix_validation() {
     config.extraction.postfixes = vec!["Invalid".to_string()]; // No .ba2 extension
 
     let result = config.validate();
-    assert!(result.is_err(), "Validation should fail for invalid postfix");
+    assert!(
+        result.is_err(),
+        "Validation should fail for invalid postfix"
+    );
 }
 
 /// Test that config validation accepts valid postfixes
@@ -116,10 +116,7 @@ fn test_invalid_regex_validation() {
 #[test]
 fn test_default_config_is_valid() {
     let config = AppConfig::default();
-    assert!(
-        config.validate().is_ok(),
-        "Default config should be valid"
-    );
+    assert!(config.validate().is_ok(), "Default config should be valid");
 }
 
 /// Test that theme mode values are preserved
